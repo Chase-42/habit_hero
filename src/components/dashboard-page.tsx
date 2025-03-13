@@ -21,24 +21,39 @@ import { WeeklyProgress } from "~/components/weekly-progress";
 import { HabitCategoryChart } from "~/components/habit-category-chart";
 import { mockHabits } from "~/lib/mock-data";
 import { ThemeToggle } from "~/components/theme-toggle";
+import type { Habit } from "~/types";
+
+type NewHabit = Omit<Habit, "id" | "createdAt" | "completedDates" | "streak">;
 
 export function DashboardPage() {
-  const [habits, setHabits] = useState(mockHabits);
+  const [habits, setHabits] = useState<Habit[]>(() =>
+    mockHabits.map((habit) => ({
+      ...habit,
+      completedDates: habit.completedDates ?? [],
+      days: habit.days ?? undefined,
+    })),
+  );
   const [isAddHabitOpen, setIsAddHabitOpen] = useState(false);
 
-  const addHabit = (habit: any) => {
-    setHabits([
-      ...habits,
-      { ...habit, id: Date.now().toString(), createdAt: new Date() },
-    ]);
+  const addHabit = (newHabit: NewHabit) => {
+    const habit: Habit = {
+      ...newHabit,
+      id: Date.now().toString(),
+      createdAt: new Date(),
+      completedDates: [],
+      streak: 0,
+    };
+    setHabits((currentHabits) => [...currentHabits, habit]);
   };
 
   const completeHabit = (id: string) => {
-    setHabits(
-      habits.map((habit) => {
+    const today = new Date().toISOString().split("T")[0];
+    if (!today) return;
+
+    setHabits((currentHabits) =>
+      currentHabits.map((habit) => {
         if (habit.id === id) {
-          const today = new Date().toISOString().split("T")[0];
-          const completedDates = habit.completedDates || [];
+          const completedDates = habit.completedDates;
 
           // Check if already completed today
           if (completedDates.includes(today)) {

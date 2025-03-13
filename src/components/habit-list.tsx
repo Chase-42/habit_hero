@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { format } from "date-fns";
 import { Check, ChevronRight, MoreHorizontal } from "lucide-react";
 import Link from "next/link";
 
@@ -14,33 +15,16 @@ import {
 import { cn } from "~/lib/utils";
 import { Badge } from "~/components/ui/badge";
 import { ScrollArea } from "~/components/ui/scroll-area";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "~/components/ui/card";
+import type { Habit } from "~/types";
 
-type HabitColor =
-  | "blue"
-  | "red"
-  | "green"
-  | "purple"
-  | "yellow"
-  | "pink"
-  | "indigo"
-  | "teal";
-
-interface Habit {
-  id: string;
-  name: string;
-  color: HabitColor;
-  frequency: "daily" | "weekdays" | "custom";
-  category: string;
-  streak: number;
-  completedDates?: string[];
-  days?: number[];
-  goal?: string;
-  notes?: string;
-  reminder?: string;
-  createdAt?: Date;
-}
-
-interface HabitListProps {
+export interface HabitListProps {
   habits: Habit[];
   onComplete: (id: string) => void;
   showAll?: boolean;
@@ -52,11 +36,10 @@ export function HabitList({
   showAll = false,
 }: HabitListProps) {
   const [expandedHabit, setExpandedHabit] = useState<string | null>(null);
-  const [today, setToday] = useState("");
+  const [today, setToday] = useState<string>("");
 
   useEffect(() => {
-    const date = new Date();
-    const dateString = date.toISOString().split("T")[0];
+    const dateString = new Date().toISOString().split("T")[0];
     if (dateString) {
       setToday(dateString);
     }
@@ -66,11 +49,11 @@ export function HabitList({
     setExpandedHabit(expandedHabit === id ? null : id);
   };
 
-  const isCompletedToday = (habit: Habit) => {
+  const isCompletedToday = (habit: Habit): boolean => {
     return Boolean(habit.completedDates?.includes(today));
   };
 
-  const getColorClasses = (color: HabitColor, isCompleted: boolean) => {
+  const getColorClasses = (color: string, isCompleted: boolean) => {
     if (isCompleted) {
       return cn(
         "h-8 w-8 rounded-full border-2 transition-all",
@@ -94,7 +77,7 @@ export function HabitList({
     return "h-8 w-8 rounded-full border-2 transition-all text-muted-foreground hover:border-primary hover:text-primary";
   };
 
-  const getBadgeClasses = (color: HabitColor) => {
+  const getBadgeClasses = (color: string) => {
     return cn(
       "bg-opacity-10 text-xs",
       color === "blue"
@@ -124,111 +107,53 @@ export function HabitList({
           </div>
         ) : (
           habits.map((habit) => (
-            <div
-              key={habit.id}
-              className={cn(
-                "group relative rounded-lg border p-4 transition-all",
-                expandedHabit === habit.id
-                  ? "bg-muted/50"
-                  : "hover:bg-muted/50",
-              )}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className={getColorClasses(
-                      habit.color,
-                      isCompletedToday(habit),
-                    )}
-                    onClick={() => onComplete(habit.id)}
+            <Card key={habit.id}>
+              <CardHeader className="pb-3">
+                <CardTitle>
+                  <Link
+                    href={`/habits/${habit.id}`}
+                    className="hover:underline hover:opacity-80"
                   >
-                    <Check className="h-4 w-4" />
-                    <span className="sr-only">Complete</span>
-                  </Button>
-                  <div>
-                    <div className="font-medium">{habit.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {habit.frequency === "daily"
-                        ? "Daily"
-                        : habit.frequency === "weekdays"
-                          ? "Weekdays"
-                          : "Custom days"}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge
-                    variant="outline"
-                    className={getBadgeClasses(habit.color)}
-                  >
-                    {habit.streak} day streak
-                  </Badge>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => toggleExpand(habit.id)}
-                  >
-                    <ChevronRight
+                    {habit.name}
+                  </Link>
+                </CardTitle>
+                <CardDescription>
+                  {habit.frequency} • {habit.category}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex items-center justify-between pb-2">
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-2">
+                    <div
                       className={cn(
-                        "h-4 w-4 transition-transform",
-                        expandedHabit === habit.id && "rotate-90",
+                        "h-4 w-4 rounded-full",
+                        habit.color === "red" && "bg-red-500",
+                        habit.color === "green" && "bg-green-500",
+                        habit.color === "blue" && "bg-blue-500",
+                        habit.color === "yellow" && "bg-yellow-500",
+                        habit.color === "purple" && "bg-purple-500",
+                        habit.color === "pink" && "bg-pink-500",
+                        habit.color === "orange" && "bg-orange-500",
                       )}
                     />
-                    <span className="sr-only">Details</span>
-                  </Button>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreHorizontal className="h-4 w-4" />
-                        <span className="sr-only">More</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem>
-                        <Link className="w-full" href={`/habits/${habit.id}`}>
-                          View Details
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>Edit</DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive">
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </div>
-              {expandedHabit === habit.id && (
-                <div className="mt-4 space-y-2 pl-11">
-                  {habit.goal && (
-                    <div className="text-sm">
-                      <span className="font-medium">Goal:</span> {habit.goal}
-                    </div>
-                  )}
-                  {habit.notes && (
-                    <div className="text-sm">
-                      <span className="font-medium">Notes:</span> {habit.notes}
-                    </div>
-                  )}
-                  <div className="text-sm">
-                    <span className="font-medium">Category:</span>{" "}
-                    {habit.category.charAt(0).toUpperCase() +
-                      habit.category.slice(1)}
+                    <span className="text-sm font-medium">
+                      {habit.streak} day streak
+                    </span>
                   </div>
-                  {habit.reminder && (
-                    <div className="text-sm">
-                      <span className="font-medium">Reminder:</span>{" "}
-                      {habit.reminder}
-                    </div>
-                  )}
-                  <Button variant="outline" size="sm" asChild className="mt-2">
-                    <Link href={`/habits/${habit.id}`}>View Full Details</Link>
-                  </Button>
                 </div>
-              )}
-            </div>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className={cn(
+                    "h-8 w-8",
+                    isCompletedToday(habit) && "bg-green-500 text-white",
+                  )}
+                  onClick={() => onComplete(habit.id)}
+                >
+                  <Check className="h-4 w-4" />
+                </Button>
+              </CardContent>
+            </Card>
           ))
         )}
       </div>
