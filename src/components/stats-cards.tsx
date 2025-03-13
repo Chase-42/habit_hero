@@ -3,9 +3,10 @@
 import { Award, Calendar, CheckCircle, Flame } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { useEffect, useState } from "react";
+import type { Habit } from "~/types";
 
 interface StatsCardsProps {
-  habits: any[];
+  habits: Habit[];
 }
 
 export function StatsCards({ habits }: StatsCardsProps) {
@@ -33,13 +34,15 @@ export function StatsCards({ habits }: StatsCardsProps) {
 
       // Calculate completed today
       const today = currentDate.toISOString().split("T")[0];
+      if (!today) return;
+
       const completedToday = habits.filter((habit) =>
-        habit.completedDates?.includes(today),
+        habit.completedDates.includes(today),
       ).length;
 
       // Calculate current streak (longest active streak)
       const longestStreak = habits.reduce(
-        (max, habit) => (habit.streak > max ? habit.streak : max),
+        (max, habit) => Math.max(max, habit.streak),
         0,
       );
 
@@ -60,6 +63,7 @@ export function StatsCards({ habits }: StatsCardsProps) {
         ) {
           const day = d.getDay();
           const dateString = d.toISOString().split("T")[0];
+          if (!dateString) continue;
 
           // Check if habit should be done on this day
           if (
@@ -70,7 +74,7 @@ export function StatsCards({ habits }: StatsCardsProps) {
             totalPossible++;
 
             // Check if habit was completed on this day
-            if (habit.completedDates?.includes(dateString)) {
+            if (habit.completedDates.includes(dateString)) {
               totalCompleted++;
             }
           }
