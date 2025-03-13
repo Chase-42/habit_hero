@@ -11,14 +11,26 @@ import {
 } from "~/components/ui/chart";
 import type { Habit } from "~/types";
 
+type Category =
+  | "Health"
+  | "Mindfulness"
+  | "Learning"
+  | "Productivity"
+  | "Other";
+
+interface CategoryData {
+  name: Category;
+  value: number;
+}
+
 interface HabitCategoryChartProps {
   habits: Habit[];
 }
 
 export function HabitCategoryChart({ habits }: HabitCategoryChartProps) {
   // Count habits by category
-  const getCategoryData = () => {
-    const categories = [
+  const getCategoryData = (): CategoryData[] => {
+    const categories: Category[] = [
       "Health",
       "Mindfulness",
       "Learning",
@@ -42,7 +54,7 @@ export function HabitCategoryChart({ habits }: HabitCategoryChartProps) {
   const data = getCategoryData();
 
   // Define colors for each category
-  const categoryColors: Record<string, string> = {
+  const categoryColors: Record<Category, string> = {
     Health: "#10b981",
     Mindfulness: "#8b5cf6",
     Learning: "#3b82f6",

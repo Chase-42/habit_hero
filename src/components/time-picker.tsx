@@ -18,12 +18,13 @@ interface TimePickerProps {
 }
 
 export function TimePicker({ value, onChange, className }: TimePickerProps) {
-  const parseTimeValue = (index: number, timeStr?: string) => {
+  const parseTimeValue = (index: 0 | 1, timeStr?: string): number => {
     if (!timeStr) return 0;
     const parts = timeStr.split(":");
     const value = parts[index];
     if (!value) return 0;
-    return Number.parseInt(value) ?? 0;
+    const parsed = Number.parseInt(value, 10);
+    return isNaN(parsed) ? 0 : parsed;
   };
 
   const [hours, setHours] = useState(() => parseTimeValue(0, value));

@@ -9,14 +9,26 @@ interface StatsCardsProps {
   habits: Habit[];
 }
 
+interface Stats {
+  totalHabits: number;
+  completedToday: number;
+  longestStreak: number;
+  weeklyCompletionRate: number;
+  todayTotal: number;
+}
+
+const initialStats: Stats = {
+  totalHabits: 0,
+  completedToday: 0,
+  longestStreak: 0,
+  weeklyCompletionRate: 0,
+  todayTotal: 0,
+};
+
+type HabitFrequency = "daily" | "weekdays" | "custom";
+
 export function StatsCards({ habits }: StatsCardsProps) {
-  const [stats, setStats] = useState({
-    totalHabits: 0,
-    completedToday: 0,
-    longestStreak: 0,
-    weeklyCompletionRate: 0,
-    todayTotal: 0,
-  });
+  const [stats, setStats] = useState<Stats>(initialStats);
   const [currentDate, setCurrentDate] = useState<Date | null>(null);
 
   useEffect(() => {
@@ -34,7 +46,10 @@ export function StatsCards({ habits }: StatsCardsProps) {
 
       // Calculate completed today
       const today = currentDate.toISOString().split("T")[0];
-      if (!today) return;
+      if (!today) {
+        setStats(initialStats);
+        return;
+      }
 
       const completedToday = habits.filter((habit) =>
         habit.completedDates.includes(today),
@@ -69,12 +84,17 @@ export function StatsCards({ habits }: StatsCardsProps) {
           if (
             habit.frequency === "daily" ||
             (habit.frequency === "weekdays" && day > 0 && day < 6) ||
-            (habit.frequency === "custom" && habit.days?.includes(day))
+            (habit.frequency === "custom" &&
+              Array.isArray(habit.days) &&
+              habit.days.includes(day))
           ) {
             totalPossible++;
 
             // Check if habit was completed on this day
-            if (habit.completedDates.includes(dateString)) {
+            if (
+              Array.isArray(habit.completedDates) &&
+              habit.completedDates.includes(dateString)
+            ) {
               totalCompleted++;
             }
           }
@@ -94,7 +114,9 @@ export function StatsCards({ habits }: StatsCardsProps) {
           (habit.frequency === "weekdays" &&
             currentDay > 0 &&
             currentDay < 6) ||
-          (habit.frequency === "custom" && habit.days?.includes(currentDay))
+          (habit.frequency === "custom" &&
+            Array.isArray(habit.days) &&
+            habit.days.includes(currentDay))
         );
       }).length;
 

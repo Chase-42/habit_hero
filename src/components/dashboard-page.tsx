@@ -23,7 +23,13 @@ import { mockHabits } from "~/lib/mock-data";
 import { ThemeToggle } from "~/components/theme-toggle";
 import type { Habit } from "~/types";
 
-type NewHabit = Omit<Habit, "id" | "createdAt" | "completedDates" | "streak">;
+type NewHabit = Omit<
+  Habit,
+  "id" | "createdAt" | "completedDates" | "streak"
+> & {
+  completedDates?: string[];
+  streak?: number;
+};
 
 export function DashboardPage() {
   const [habits, setHabits] = useState<Habit[]>(() =>
@@ -40,8 +46,8 @@ export function DashboardPage() {
       ...newHabit,
       id: Date.now().toString(),
       createdAt: new Date(),
-      completedDates: [],
-      streak: 0,
+      completedDates: newHabit.completedDates ?? [],
+      streak: newHabit.streak ?? 0,
     };
     setHabits((currentHabits) => [...currentHabits, habit]);
   };
@@ -72,6 +78,16 @@ export function DashboardPage() {
         }
         return habit;
       }),
+    );
+  };
+
+  const getTodayHabits = () => {
+    const today = new Date().getDay();
+    return habits.filter(
+      (habit) =>
+        habit.frequency === "daily" ||
+        (habit.frequency === "weekdays" && today > 0 && today < 6) ||
+        (habit.frequency === "custom" && habit.days?.includes(today)),
     );
   };
 
@@ -143,17 +159,7 @@ export function DashboardPage() {
                 </CardHeader>
                 <CardContent>
                   <HabitList
-                    habits={habits.filter((habit) => {
-                      const today = new Date().getDay();
-                      return (
-                        habit.frequency === "daily" ||
-                        (habit.frequency === "weekdays" &&
-                          today > 0 &&
-                          today < 6) ||
-                        (habit.frequency === "custom" &&
-                          habit.days?.includes(today))
-                      );
-                    })}
+                    habits={getTodayHabits()}
                     onComplete={completeHabit}
                   />
                 </CardContent>

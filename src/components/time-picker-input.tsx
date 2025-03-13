@@ -3,7 +3,11 @@
 import * as React from "react";
 import { cn } from "~/lib/utils";
 
-interface TimePickerInputProps {
+interface TimePickerInputProps
+  extends Omit<
+    React.InputHTMLAttributes<HTMLInputElement>,
+    "onChange" | "value"
+  > {
   value: number;
   onChange: (value: number) => void;
   max: number;

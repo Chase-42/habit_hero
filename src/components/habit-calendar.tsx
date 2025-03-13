@@ -11,6 +11,8 @@ interface HabitCalendarProps {
   habits: Habit[];
 }
 
+type CalendarDay = number | null;
+
 export function HabitCalendar({ habits }: HabitCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
@@ -42,7 +44,7 @@ export function HabitCalendar({ habits }: HabitCalendarProps) {
   const monthName = currentMonth.toLocaleString("default", { month: "long" });
 
   // Generate calendar days
-  const days = [];
+  const days: CalendarDay[] = [];
   for (let i = 0; i < firstDayOfMonth; i++) {
     days.push(null); // Empty cells for days before the 1st of the month
   }
@@ -52,7 +54,7 @@ export function HabitCalendar({ habits }: HabitCalendarProps) {
   }
 
   // Check if a habit was completed on a specific day
-  const getCompletedHabitsForDay = (day: number) => {
+  const getCompletedHabitsForDay = (day: number | null) => {
     if (!day) return [];
 
     const date = new Date(year, month, day).toISOString().split("T")[0];
@@ -100,7 +102,7 @@ export function HabitCalendar({ habits }: HabitCalendarProps) {
         ))}
 
         {days.map((day, index) => {
-          const completedHabits = day ? getCompletedHabitsForDay(day) : [];
+          const completedHabits = getCompletedHabitsForDay(day);
           const isToday =
             day &&
             new Date().getDate() === day &&

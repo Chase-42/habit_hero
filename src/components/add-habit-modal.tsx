@@ -41,7 +41,7 @@ import * as z from "zod";
 import { Checkbox } from "~/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group";
 import { TimePicker } from "~/components/time-picker";
-import type { Habit } from "~/types";
+import type { Habit, HabitColor } from "~/types";
 
 type NewHabit = Omit<
   Habit,
@@ -51,7 +51,28 @@ type NewHabit = Omit<
   streak: number;
 };
 
-const categories = [
+type Category = {
+  label: string;
+  value: string;
+};
+
+type Frequency = {
+  label: string;
+  value: "daily" | "weekdays" | "custom";
+};
+
+type Day = {
+  label: string;
+  value: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+};
+
+type Color = {
+  label: string;
+  value: HabitColor;
+  class: string;
+};
+
+const categories: Category[] = [
   { label: "Fitness", value: "fitness" },
   { label: "Mindfulness", value: "mindfulness" },
   { label: "Productivity", value: "productivity" },
@@ -59,13 +80,13 @@ const categories = [
   { label: "Custom", value: "custom" },
 ];
 
-const frequencies = [
+const frequencies: Frequency[] = [
   { label: "Daily", value: "daily" },
   { label: "Weekdays", value: "weekdays" },
   { label: "Custom days", value: "custom" },
 ];
 
-const days = [
+const days: Day[] = [
   { label: "Sunday", value: 0 },
   { label: "Monday", value: 1 },
   { label: "Tuesday", value: 2 },
@@ -75,38 +96,48 @@ const days = [
   { label: "Saturday", value: 6 },
 ];
 
-const colors = [
+const colors: Color[] = [
   { label: "Red", value: "red", class: "bg-red-500" },
   { label: "Green", value: "green", class: "bg-green-500" },
   { label: "Blue", value: "blue", class: "bg-blue-500" },
   { label: "Yellow", value: "yellow", class: "bg-yellow-500" },
   { label: "Purple", value: "purple", class: "bg-purple-500" },
   { label: "Pink", value: "pink", class: "bg-pink-500" },
-  { label: "Indigo", value: "indigo", class: "bg-indigo-500" },
-  { label: "Teal", value: "teal", class: "bg-teal-500" },
+  { label: "Orange", value: "orange", class: "bg-orange-500" },
 ];
 
 const formSchema = z.object({
   name: z.string().min(1, { message: "Habit name is required" }),
   category: z.string({ required_error: "Please select a category" }),
-  frequency: z.string({ required_error: "Please select a frequency" }),
-  days: z.array(z.number()).optional(),
+  frequency: z.enum(["daily", "weekdays", "custom"], {
+    required_error: "Please select a frequency",
+  }),
+  days: z.array(z.number().min(0).max(6)).optional(),
   reminder: z.string().optional(),
-  color: z.string({ required_error: "Please select a color" }),
-  goal: z.string().optional(),
+  color: z.enum(
+    ["red", "green", "blue", "yellow", "purple", "pink", "orange"] as const,
+    {
+      required_error: "Please select a color",
+    },
+  ),
+  goal: z.number().optional(),
   notes: z.string().optional(),
 });
+
+type FormValues = z.infer<typeof formSchema>;
+
+interface AddHabitModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onAddHabit: (habit: NewHabit) => void;
+}
 
 export function AddHabitModal({
   open,
   onOpenChange,
   onAddHabit,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onAddHabit: (habit: NewHabit) => void;
-}) {
-  const form = useForm<z.infer<typeof formSchema>>({
+}: AddHabitModalProps) {
+  const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
@@ -114,18 +145,26 @@ export function AddHabitModal({
       frequency: "daily",
       days: [],
       reminder: "",
-      color: "blue",
-      goal: "",
+      color: "blue" as HabitColor,
+      goal: undefined,
       notes: "",
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    onAddHabit({
-      ...values,
+  function onSubmit(values: FormValues) {
+    const habit: NewHabit = {
+      name: values.name,
+      category: values.category,
+      frequency: values.frequency,
+      days: values.days,
+      reminder: values.reminder,
+      color: values.color as HabitColor,
+      goal: values.goal,
+      notes: values.notes,
       streak: 0,
       completedDates: [],
-    });
+    };
+    onAddHabit(habit);
     form.reset();
     onOpenChange(false);
   }
@@ -266,9 +305,14 @@ export function AddHabitModal({
                         >
                           <FormControl>
                             <Checkbox
-                              checked={field.value?.includes(day.value)}
+                              checked={
+                                Array.isArray(field.value) &&
+                                field.value.includes(day.value)
+                              }
                               onCheckedChange={(checked) => {
-                                const currentValues = field.value ?? [];
+                                const currentValues = Array.isArray(field.value)
+                                  ? field.value
+                                  : [];
                                 const newValues = checked
                                   ? [...currentValues, day.value]
                                   : currentValues.filter(
@@ -344,7 +388,18 @@ export function AddHabitModal({
                 <FormItem>
                   <FormLabel>Goal (Optional)</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., Run 5km daily" {...field} />
+                    <Input
+                      type="number"
+                      placeholder="e.g., 5 (for 5km daily)"
+                      {...field}
+                      onChange={(e) => {
+                        const value = e.target.value
+                          ? Number(e.target.value)
+                          : undefined;
+                        field.onChange(value);
+                      }}
+                      value={field.value ?? ""}
+                    />
                   </FormControl>
                   <FormDescription>
                     Set a specific goal for this habit.

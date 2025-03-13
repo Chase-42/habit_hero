@@ -10,14 +10,19 @@ import {
 } from "~/components/ui/chart";
 import type { Habit } from "~/types";
 
+interface DailyData {
+  name: string;
+  value: number;
+}
+
 interface WeeklyProgressProps {
   habits: Habit[];
 }
 
 export function WeeklyProgress({ habits }: WeeklyProgressProps) {
   // Get data for the past 7 days
-  const getDailyData = () => {
-    const data = [];
+  const getDailyData = (): DailyData[] => {
+    const data: DailyData[] = [];
     const today = new Date();
 
     for (let i = 6; i >= 0; i--) {
