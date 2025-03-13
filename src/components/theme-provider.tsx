@@ -4,14 +4,14 @@ import * as React from "react";
 import {
   ThemeProvider as NextThemesProvider,
   useTheme as useNextTheme,
+  type ThemeProviderProps,
 } from "next-themes";
 
-export function ThemeProvider({
-  children,
-  ...props
-}: {
+export interface Props extends ThemeProviderProps {
   children: React.ReactNode;
-}) {
+}
+
+export function ThemeProvider({ children, ...props }: Props) {
   return (
     <NextThemesProvider
       attribute="class"

@@ -29,7 +29,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen bg-background">
-        <ThemeProvider defaultTheme="dark">{children}</ThemeProvider>
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );
