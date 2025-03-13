@@ -8,9 +8,10 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "~/components/ui/chart";
+import type { Habit } from "~/types";
 
 interface WeeklyProgressProps {
-  habits: any[];
+  habits: Habit[];
 }
 
 export function WeeklyProgress({ habits }: WeeklyProgressProps) {
@@ -23,6 +24,8 @@ export function WeeklyProgress({ habits }: WeeklyProgressProps) {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
       const dateString = date.toISOString().split("T")[0];
+      if (!dateString) continue;
+
       const dayName = date.toLocaleDateString("en-US", { weekday: "short" });
 
       // Count habits that should be done on this day
@@ -36,7 +39,7 @@ export function WeeklyProgress({ habits }: WeeklyProgressProps) {
 
       // Count completed habits for this day
       const completedHabits = habitsForDay.filter((habit) =>
-        habit.completedDates?.includes(dateString),
+        habit.completedDates.includes(dateString),
       ).length;
 
       // Calculate completion percentage

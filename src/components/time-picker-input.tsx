@@ -1,37 +1,43 @@
-"use client"
+"use client";
 
-import { Input } from "~/components/ui/input"
-import { cn } from "~/lib/utils"
-import type React from "react"
+import * as React from "react";
+import { cn } from "~/lib/utils";
 
-interface TimePickerInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  value: number
-  onChange: (value: number) => void
-  max: number
-  placeholder: string
+interface TimePickerInputProps {
+  value: number;
+  onChange: (value: number) => void;
+  max: number;
+  min?: number;
+  className?: string;
 }
 
-export function TimePickerInput({ className, value, onChange, max, placeholder, ...props }: TimePickerInputProps) {
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = Number.parseInt(e.target.value, 10)
-    if (isNaN(value)) {
-      onChange(0)
-    } else if (value >= 0 && value <= max) {
-      onChange(value)
+export function TimePickerInput({
+  className,
+  value,
+  onChange,
+  max,
+  min = 0,
+  ...props
+}: TimePickerInputProps) {
+  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = parseInt(event.target.value, 10);
+    if (!isNaN(newValue) && newValue >= min && newValue <= max) {
+      onChange(newValue);
     }
-  }
+  };
 
   return (
-    <Input
-      type="number"
-      placeholder={placeholder}
-      value={value.toString().padStart(2, "0")}
-      onChange={handleChange}
-      className={cn("w-16 text-center", className)}
-      min={0}
-      max={max}
+    <input
       {...props}
+      type="number"
+      value={value}
+      onChange={handleChange}
+      min={min}
+      max={max}
+      className={cn(
+        "w-16 rounded-md border border-input bg-background px-3 py-1 text-center text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+        className,
+      )}
     />
-  )
+  );
 }
-

@@ -138,7 +138,7 @@ export function DashboardPage() {
               </div>
               <Card>
                 <CardHeader>
-                  <CardTitle>Today's Habits</CardTitle>
+                  <CardTitle>Today&apos;s Habits</CardTitle>
                   <CardDescription>Habits to complete today</CardDescription>
                 </CardHeader>
                 <CardContent>
