@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { format } from "date-fns";
 import {
   LineChart,
@@ -21,7 +20,6 @@ import {
   CardTitle,
 } from "~/components/ui/card";
 import { mockHabits } from "~/lib/mock-data";
-import type { Habit } from "~/types";
 
 export default function HabitPage({ params }: { params: { id: string } }) {
   const habit = mockHabits.find((h) => h.id === params.id);

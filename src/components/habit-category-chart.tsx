@@ -62,9 +62,6 @@ export function HabitCategoryChart({ habits }: HabitCategoryChartProps) {
     Other: "#6b7280",
   };
 
-  // Get colors array in the same order as data
-  const colors = data.map((item) => categoryColors[item.name] ?? "#6b7280");
-
   return (
     <div className="h-[300px] w-full">
       {data.length > 0 ? (
@@ -74,7 +71,10 @@ export function HabitCategoryChart({ habits }: HabitCategoryChartProps) {
             <XAxis dataKey="name" />
             <YAxis />
             <Tooltip />
-            <Bar dataKey="value" fill="hsl(var(--chart-1))" />
+            <Bar
+              dataKey="value"
+              fill={data[0] ? categoryColors[data[0].name] : "#6b7280"}
+            />
           </BarChart>
         </ResponsiveContainer>
       ) : (

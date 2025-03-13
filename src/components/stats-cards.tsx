@@ -25,8 +25,6 @@ const initialStats: Stats = {
   todayTotal: 0,
 };
 
-type HabitFrequency = "daily" | "weekdays" | "custom";
-
 export function StatsCards({ habits }: StatsCardsProps) {
   const [stats, setStats] = useState<Stats>(initialStats);
   const [currentDate, setCurrentDate] = useState<Date | null>(null);
