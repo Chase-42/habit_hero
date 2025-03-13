@@ -4,6 +4,15 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Edit, Trash } from "lucide-react";
 import Link from "next/link";
+import {
+  LineChart as RechartsLineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 
 import { Button } from "~/components/ui/button";
 import {
@@ -18,7 +27,6 @@ import { HabitCalendar } from "~/components/habit-calendar";
 import { mockHabits } from "~/lib/mock-data";
 import { Badge } from "~/components/ui/badge";
 import { cn } from "~/lib/utils";
-import { LineChart } from "~/components/ui/chart";
 import { Textarea } from "~/components/ui/textarea";
 
 export default function HabitDetailPage({
@@ -277,19 +285,36 @@ export default function HabitDetailPage({
                 </CardHeader>
                 <CardContent>
                   <div className="h-[300px]">
-                    <LineChart
-                      data={monthlyData}
-                      categories={["value"]}
-                      index="name"
-                      colors={[
-                        `#${habit.color === "blue" ? "3b82f6" : habit.color === "red" ? "ef4444" : habit.color === "green" ? "10b981" : habit.color === "purple" ? "8b5cf6" : habit.color === "yellow" ? "f59e0b" : habit.color === "pink" ? "ec4899" : habit.color === "indigo" ? "6366f1" : "14b8a6"}`,
-                      ]}
-                      valueFormatter={(value) => `${value}%`}
-                      showAnimation
-                      showLegend={false}
-                      showGridLines={false}
-                      className="h-full"
-                    />
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RechartsLineChart data={monthlyData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip formatter={(value: number) => `${value}%`} />
+                        <Line
+                          type="monotone"
+                          dataKey="value"
+                          stroke={`#${
+                            habit.color === "blue"
+                              ? "3b82f6"
+                              : habit.color === "red"
+                                ? "ef4444"
+                                : habit.color === "green"
+                                  ? "10b981"
+                                  : habit.color === "purple"
+                                    ? "8b5cf6"
+                                    : habit.color === "yellow"
+                                      ? "f59e0b"
+                                      : habit.color === "pink"
+                                        ? "ec4899"
+                                        : habit.color === "indigo"
+                                          ? "6366f1"
+                                          : "14b8a6"
+                          }`}
+                          strokeWidth={2}
+                        />
+                      </RechartsLineChart>
+                    </ResponsiveContainer>
                   </div>
                 </CardContent>
               </Card>
