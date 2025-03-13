@@ -15,8 +15,33 @@ import { cn } from "~/lib/utils";
 import { Badge } from "~/components/ui/badge";
 import { ScrollArea } from "~/components/ui/scroll-area";
 
+type HabitColor =
+  | "blue"
+  | "red"
+  | "green"
+  | "purple"
+  | "yellow"
+  | "pink"
+  | "indigo"
+  | "teal";
+
+interface Habit {
+  id: string;
+  name: string;
+  color: HabitColor;
+  frequency: "daily" | "weekdays" | "custom";
+  category: string;
+  streak: number;
+  completedDates?: string[];
+  days?: number[];
+  goal?: string;
+  notes?: string;
+  reminder?: string;
+  createdAt?: Date;
+}
+
 interface HabitListProps {
-  habits: any[];
+  habits: Habit[];
   onComplete: (id: string) => void;
   showAll?: boolean;
 }
@@ -30,18 +55,22 @@ export function HabitList({
   const [today, setToday] = useState("");
 
   useEffect(() => {
-    setToday(new Date().toISOString().split("T")[0]);
+    const date = new Date();
+    const dateString = date.toISOString().split("T")[0];
+    if (dateString) {
+      setToday(dateString);
+    }
   }, []);
 
   const toggleExpand = (id: string) => {
     setExpandedHabit(expandedHabit === id ? null : id);
   };
 
-  const isCompletedToday = (habit: any) => {
-    return habit.completedDates?.includes(today);
+  const isCompletedToday = (habit: Habit) => {
+    return Boolean(habit.completedDates?.includes(today));
   };
 
-  const getColorClasses = (color: string, isCompleted: boolean) => {
+  const getColorClasses = (color: HabitColor, isCompleted: boolean) => {
     if (isCompleted) {
       return cn(
         "h-8 w-8 rounded-full border-2 transition-all",
@@ -65,7 +94,7 @@ export function HabitList({
     return "h-8 w-8 rounded-full border-2 transition-all text-muted-foreground hover:border-primary hover:text-primary";
   };
 
-  const getBadgeClasses = (color: string) => {
+  const getBadgeClasses = (color: HabitColor) => {
     return cn(
       "bg-opacity-10 text-xs",
       color === "blue"
@@ -158,8 +187,10 @@ export function HabitList({
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem asChild>
-                        <Link href={`/habits/${habit.id}`}>View Details</Link>
+                      <DropdownMenuItem>
+                        <Link className="w-full" href={`/habits/${habit.id}`}>
+                          View Details
+                        </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem>Edit</DropdownMenuItem>
                       <DropdownMenuItem className="text-destructive">

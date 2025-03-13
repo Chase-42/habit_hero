@@ -1,31 +1,47 @@
-const generateRandomDates = (count: number, streak: number) => {
-  const dates = []
-  const today = new Date()
+type HabitColor = "blue" | "red" | "green" | "purple" | "yellow" | "pink" | "indigo" | "teal";
+
+interface Habit {
+  id: string;
+  name: string;
+  color: HabitColor;
+  frequency: "daily" | "weekdays" | "custom";
+  category: string;
+  streak: number;
+  completedDates?: string[];
+  days?: number[] | null;
+  goal?: string;
+  notes?: string;
+  reminder?: string;
+  createdAt?: Date;
+}
+
+const generateRandomDates = (count: number, streak: number): string[] => {
+  const dates: string[] = [];
+  const today = new Date();
 
   // Add streak days (consecutive days including today)
   for (let i = 0; i < streak; i++) {
-    const date = new Date(today)
-    date.setDate(date.getDate() - i)
-    dates.push(date.toISOString().split("T")[0])
+    const date = new Date(today);
+    date.setDate(date.getDate() - i);
+    const dateStr = date.toISOString().split("T")[0];
+    if (dateStr) dates.push(dateStr);
   }
 
   // Add random dates from the past 30 days
   for (let i = 0; i < count - streak; i++) {
-    const randomDaysAgo = Math.floor(Math.random() * 30) + streak
-    const date = new Date(today)
-    date.setDate(date.getDate() - randomDaysAgo)
-    const dateString = date.toISOString().split("T")[0]
-
-    // Avoid duplicates
-    if (!dates.includes(dateString)) {
-      dates.push(dateString)
+    const randomDaysAgo = Math.floor(Math.random() * 30) + streak;
+    const date = new Date(today);
+    date.setDate(date.getDate() - randomDaysAgo);
+    const dateStr = date.toISOString().split("T")[0];
+    if (dateStr && !dates.includes(dateStr)) {
+      dates.push(dateStr);
     }
   }
 
-  return dates
+  return dates;
 }
 
-export const mockHabits = [
+export const mockHabits: Habit[] = [
   {
     id: "1",
     name: "Morning Run",

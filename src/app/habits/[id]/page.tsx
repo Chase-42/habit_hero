@@ -29,13 +29,38 @@ import { Badge } from "~/components/ui/badge";
 import { cn } from "~/lib/utils";
 import { Textarea } from "~/components/ui/textarea";
 
+type HabitColor =
+  | "blue"
+  | "red"
+  | "green"
+  | "purple"
+  | "yellow"
+  | "pink"
+  | "indigo"
+  | "teal";
+
+interface Habit {
+  id: string;
+  name: string;
+  color: HabitColor;
+  frequency: "daily" | "weekdays" | "custom";
+  category: string;
+  streak: number;
+  completedDates?: string[];
+  days?: number[] | null;
+  goal?: string;
+  notes?: string;
+  reminder?: string;
+  createdAt?: Date;
+}
+
 export default function HabitDetailPage({
   params,
 }: {
   params: { id: string };
 }) {
   const router = useRouter();
-  const [habit, setHabit] = useState<any>(null);
+  const [habit, setHabit] = useState<Habit | null>(null);
   const [notes, setNotes] = useState("");
 
   useEffect(() => {
@@ -43,7 +68,7 @@ export default function HabitDetailPage({
     const foundHabit = mockHabits.find((h) => h.id === params.id);
     if (foundHabit) {
       setHabit(foundHabit);
-      setNotes(foundHabit.notes || "");
+      setNotes(foundHabit.notes ?? "");
     } else {
       router.push("/");
     }
@@ -78,18 +103,19 @@ export default function HabitDetailPage({
       ) {
         const day = d.getDay();
         const dateString = d.toISOString().split("T")[0];
+        if (dateString) {
+          // Check if habit should be done on this day
+          if (
+            habit.frequency === "daily" ||
+            (habit.frequency === "weekdays" && day > 0 && day < 6) ||
+            (habit.frequency === "custom" && habit.days?.includes(day))
+          ) {
+            daysInPeriod++;
 
-        // Check if habit should be done on this day
-        if (
-          habit.frequency === "daily" ||
-          (habit.frequency === "weekdays" && day > 0 && day < 6) ||
-          (habit.frequency === "custom" && habit.days?.includes(day))
-        ) {
-          daysInPeriod++;
-
-          // Check if habit was completed on this day
-          if (habit.completedDates?.includes(dateString)) {
-            daysCompleted++;
+            // Check if habit was completed on this day
+            if (habit.completedDates?.includes(dateString)) {
+              daysCompleted++;
+            }
           }
         }
       }
@@ -121,17 +147,22 @@ export default function HabitDetailPage({
     let bestStreak = 1;
 
     for (let i = 1; i < sortedDates.length; i++) {
-      const prevDate = new Date(sortedDates[i - 1]);
-      const currDate = new Date(sortedDates[i]);
+      const prevDateStr = sortedDates[i - 1];
+      const currDateStr = sortedDates[i];
 
-      // Check if dates are consecutive
-      prevDate.setDate(prevDate.getDate() + 1);
+      if (prevDateStr && currDateStr) {
+        const prevDate = new Date(prevDateStr);
+        const currDate = new Date(currDateStr);
 
-      if (prevDate.toISOString().split("T")[0] === sortedDates[i]) {
-        currentStreak++;
-        bestStreak = Math.max(bestStreak, currentStreak);
-      } else {
-        currentStreak = 1;
+        // Check if dates are consecutive
+        prevDate.setDate(prevDate.getDate() + 1);
+
+        if (prevDate.toISOString().split("T")[0] === sortedDates[i]) {
+          currentStreak++;
+          bestStreak = Math.max(bestStreak, currentStreak);
+        } else {
+          currentStreak = 1;
+        }
       }
     }
 
@@ -145,7 +176,7 @@ export default function HabitDetailPage({
     if (!habit.completedDates) return 0;
 
     const createdAt =
-      habit.createdAt || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      habit.createdAt ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const today = new Date();
     let daysToComplete = 0;
 
@@ -167,6 +198,17 @@ export default function HabitDetailPage({
   };
 
   const completionRate = calculateCompletionRate();
+
+  const colorMap: Record<HabitColor, string> = {
+    blue: "#3b82f6",
+    red: "#ef4444",
+    green: "#10b981",
+    purple: "#8b5cf6",
+    yellow: "#f59e0b",
+    pink: "#ec4899",
+    indigo: "#6366f1",
+    teal: "#14b8a6",
+  };
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -196,7 +238,17 @@ export default function HabitDetailPage({
           <div className="mb-6 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div
-                className={cn("h-8 w-8 rounded-full", `bg-${habit.color}-500`)}
+                className={cn(
+                  "h-8 w-8 rounded-full",
+                  habit.color === "blue" && "bg-blue-500",
+                  habit.color === "red" && "bg-red-500",
+                  habit.color === "green" && "bg-green-500",
+                  habit.color === "purple" && "bg-purple-500",
+                  habit.color === "yellow" && "bg-yellow-500",
+                  habit.color === "pink" && "bg-pink-500",
+                  habit.color === "indigo" && "bg-indigo-500",
+                  habit.color === "teal" && "bg-teal-500",
+                )}
               />
               <div>
                 <h1 className="text-3xl font-bold tracking-tight">
@@ -218,7 +270,22 @@ export default function HabitDetailPage({
               variant="outline"
               className={cn(
                 "text-base",
-                `bg-${habit.color}-100 text-${habit.color}-700 dark:bg-${habit.color}-900 dark:text-${habit.color}-300`,
+                habit.color === "blue" &&
+                  "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
+                habit.color === "red" &&
+                  "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300",
+                habit.color === "green" &&
+                  "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
+                habit.color === "purple" &&
+                  "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300",
+                habit.color === "yellow" &&
+                  "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300",
+                habit.color === "pink" &&
+                  "bg-pink-100 text-pink-700 dark:bg-pink-900 dark:text-pink-300",
+                habit.color === "indigo" &&
+                  "bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300",
+                habit.color === "teal" &&
+                  "bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300",
               )}
             >
               {habit.streak} day streak
@@ -267,10 +334,10 @@ export default function HabitDetailPage({
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">
-                      {habit.completedDates?.length || 0}
+                      {habit.completedDates?.length ?? 0}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Times you've completed this habit
+                      Times you&apos;ve completed this habit
                     </p>
                   </CardContent>
                 </Card>
@@ -294,23 +361,7 @@ export default function HabitDetailPage({
                         <Line
                           type="monotone"
                           dataKey="value"
-                          stroke={`#${
-                            habit.color === "blue"
-                              ? "3b82f6"
-                              : habit.color === "red"
-                                ? "ef4444"
-                                : habit.color === "green"
-                                  ? "10b981"
-                                  : habit.color === "purple"
-                                    ? "8b5cf6"
-                                    : habit.color === "yellow"
-                                      ? "f59e0b"
-                                      : habit.color === "pink"
-                                        ? "ec4899"
-                                        : habit.color === "indigo"
-                                          ? "6366f1"
-                                          : "14b8a6"
-                          }`}
+                          stroke={colorMap[habit.color]}
                           strokeWidth={2}
                         />
                       </RechartsLineChart>
