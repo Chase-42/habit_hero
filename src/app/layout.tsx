@@ -1,5 +1,5 @@
 import type React from "react";
-import { ThemeProvider } from "../src/components/theme-provider";
+import { ThemeProvider } from "~/components/theme-provider";
 import "./globals.css";
 
 export default function RootLayout({
