@@ -14,30 +14,47 @@ import {
   CardHeader,
   CardTitle,
 } from "~/components/ui/card";
-import type { Habit } from "~/types";
+import type { Habit, HabitLog } from "~/types";
 
 export interface HabitListProps {
   habits: Habit[];
+  habitLogs: HabitLog[];
   onComplete: (id: string) => void;
   showAll?: boolean;
 }
 
 export function HabitList({
   habits,
+  habitLogs,
   onComplete,
   showAll = false,
 }: HabitListProps) {
-  const [today, setToday] = useState<string>("");
+  const isCompletedToday = (habit: Habit) => {
+    const today = new Date().toISOString().split("T")[0];
+    return habitLogs.some(
+      (log) =>
+        log.habitId === habit.id &&
+        log.completedAt.toISOString().split("T")[0] === today,
+    );
+  };
 
-  useEffect(() => {
-    const dateString = new Date().toISOString().split("T")[0];
-    if (dateString) {
-      setToday(dateString);
+  const getFrequencyText = (habit: Habit) => {
+    if (habit.frequencyType === "daily") return "Daily";
+
+    if (habit.frequencyType === "weekly") {
+      const days = habit.frequencyValue.days
+        ?.map((day) =>
+          new Date(0, 0, day).toLocaleDateString("en-US", { weekday: "short" }),
+        )
+        .join(", ");
+      return `Weekly (${days})`;
     }
-  }, []);
 
-  const isCompletedToday = (habit: Habit): boolean => {
-    return Boolean(habit.completedDates?.includes(today));
+    if (habit.frequencyType === "monthly") {
+      return "Monthly (1st)";
+    }
+
+    return "";
   };
 
   return (
@@ -59,9 +76,7 @@ export function HabitList({
                     {habit.name}
                   </Link>
                 </CardTitle>
-                <CardDescription>
-                  {habit.frequency} • {habit.category}
-                </CardDescription>
+                <CardDescription>{getFrequencyText(habit)}</CardDescription>
               </CardHeader>
               <CardContent className="flex items-center justify-between pb-2">
                 <div className="flex items-center space-x-4">
@@ -84,15 +99,10 @@ export function HabitList({
                   </div>
                 </div>
                 <Button
-                  variant="outline"
-                  size="icon"
-                  className={cn(
-                    "h-8 w-8",
-                    isCompletedToday(habit) && "bg-green-500 text-white",
-                  )}
+                  variant={isCompletedToday(habit) ? "default" : "outline"}
                   onClick={() => onComplete(habit.id)}
                 >
-                  <Check className="h-4 w-4" />
+                  {isCompletedToday(habit) ? "Completed" : "Complete"}
                 </Button>
               </CardContent>
             </Card>
