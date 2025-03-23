@@ -14,10 +14,10 @@ import {
 } from "~/components/ui/card";
 import type { Habit, HabitLog } from "~/types";
 
-export interface HabitListProps {
+interface HabitListProps {
   habits: Habit[];
   habitLogs: HabitLog[];
-  onComplete: (id: string) => void;
+  onComplete: (habit: Habit) => void | Promise<void>;
   showAll?: boolean;
 }
 
@@ -29,11 +29,16 @@ export function HabitList({
 }: HabitListProps) {
   const isCompletedToday = (habit: Habit) => {
     const today = new Date().toISOString().split("T")[0];
-    return habitLogs.some(
-      (log) =>
-        log.habitId === habit.id &&
-        log.completedAt.toISOString().split("T")[0] === today,
-    );
+    console.log("Checking completion for habit:", habit.id);
+    console.log("Today's date:", today);
+    console.log("Available logs:", habitLogs);
+    const completed = habitLogs.some((log) => {
+      const logDate = new Date(log.completedAt).toISOString().split("T")[0];
+      console.log("Log date:", logDate, "for habit:", log.habitId);
+      return log.habitId === habit.id && logDate === today;
+    });
+    console.log("Is completed:", completed);
+    return completed;
   };
 
   const getFrequencyText = (habit: Habit) => {
@@ -42,29 +47,39 @@ export function HabitList({
     if (habit.frequencyType === "weekly") {
       const days = habit.frequencyValue.days
         ?.map((day) =>
-          new Date(0, 0, day).toLocaleDateString("en-US", { weekday: "short" }),
+          new Date(0, 0, day).toLocaleDateString("en-US", { weekday: "short" })
         )
         .join(", ");
       return `Weekly (${days})`;
     }
 
     if (habit.frequencyType === "monthly") {
-      return "Monthly (1st)";
+      return "Monthly";
     }
 
     return "";
   };
 
+  const filteredHabits = showAll ? habits : habits.filter((h) => h.isActive);
+
+  if (filteredHabits.length === 0) {
+    return (
+      <div className="flex h-32 items-center justify-center text-muted-foreground">
+        No habits to display
+      </div>
+    );
+  }
+
   return (
     <ScrollArea className={showAll ? "h-[500px]" : "h-auto"}>
       <div className="space-y-2">
-        {habits.length === 0 ? (
-          <div className="flex h-32 items-center justify-center text-center">
-            <p className="text-muted-foreground">No habits to display</p>
-          </div>
-        ) : (
-          habits.map((habit) => (
-            <Card key={habit.id}>
+        {filteredHabits.map((habit) => {
+          const completed = isCompletedToday(habit);
+          return (
+            <Card
+              key={habit.id}
+              className={cn("transition-colors", completed && "bg-muted")}
+            >
               <CardHeader className="pb-3">
                 <CardTitle>
                   <Link
@@ -88,7 +103,7 @@ export function HabitList({
                         habit.color === "yellow" && "bg-yellow-500",
                         habit.color === "purple" && "bg-purple-500",
                         habit.color === "pink" && "bg-pink-500",
-                        habit.color === "orange" && "bg-orange-500",
+                        habit.color === "orange" && "bg-orange-500"
                       )}
                     />
                     <span className="text-sm font-medium">
@@ -97,15 +112,24 @@ export function HabitList({
                   </div>
                 </div>
                 <Button
-                  variant={isCompletedToday(habit) ? "default" : "outline"}
-                  onClick={() => onComplete(habit.id)}
+                  variant={completed ? "outline" : "default"}
+                  onClick={() => {
+                    console.log("Complete button clicked for habit:", habit);
+                    void onComplete(habit);
+                  }}
+                  disabled={completed}
                 >
-                  {isCompletedToday(habit) ? "Completed" : "Complete"}
+                  {completed ? "Completed" : "Complete"}
+                  {process.env.NODE_ENV === "development" && (
+                    <span className="ml-2 text-xs opacity-50">
+                      (disabled: {String(completed)})
+                    </span>
+                  )}
                 </Button>
               </CardContent>
             </Card>
-          ))
-        )}
+          );
+        })}
       </div>
     </ScrollArea>
   );

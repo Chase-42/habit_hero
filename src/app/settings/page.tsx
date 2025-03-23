@@ -1,21 +1,33 @@
-"use client"
-import { ArrowLeft, Bell, Moon, Sun } from "lucide-react"
-import Link from "next/link"
+"use client";
+import { ArrowLeft, Bell, Moon, Sun } from "lucide-react";
+import Link from "next/link";
 
-import { Button } from "~/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card"
-import { Input } from "~/components/ui/input"
-import { Label } from "~/components/ui/label"
-import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group"
-import { Switch } from "~/components/ui/switch"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs"
-import { Textarea } from "~/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select"
-import { useTheme } from "~/components/theme-provider"
-import { ThemeToggle } from "~/components/theme-toggle"
+import { Button } from "~/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "~/components/ui/card";
+import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group";
+import { Switch } from "~/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
+import { Textarea } from "~/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
+import { useTheme } from "~/components/theme-provider";
+import { ThemeToggle } from "~/components/theme-toggle";
 
 export default function SettingsPage() {
-  const { theme, setTheme } = useTheme()
+  const { theme, setTheme } = useTheme();
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -44,16 +56,27 @@ export default function SettingsPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Profile</CardTitle>
-                  <CardDescription>Manage your profile information</CardDescription>
+                  <CardDescription>
+                    Manage your profile information
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="name">Name</Label>
-                    <Input id="name" placeholder="Your name" defaultValue="John Doe" />
+                    <Input
+                      id="name"
+                      placeholder="Your name"
+                      defaultValue="John Doe"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
-                    <Input id="email" type="email" placeholder="Your email" defaultValue="john@example.com" />
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="Your email"
+                      defaultValue="john@example.com"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="bio">Bio</Label>
@@ -70,7 +93,9 @@ export default function SettingsPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Account</CardTitle>
-                  <CardDescription>Manage your account settings</CardDescription>
+                  <CardDescription>
+                    Manage your account settings
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
@@ -82,7 +107,9 @@ export default function SettingsPage() {
                     <Input id="new-password" type="password" />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="confirm-password">Confirm New Password</Label>
+                    <Label htmlFor="confirm-password">
+                      Confirm New Password
+                    </Label>
                     <Input id="confirm-password" type="password" />
                   </div>
                   <Button>Update Password</Button>
@@ -93,26 +120,36 @@ export default function SettingsPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Appearance</CardTitle>
-                  <CardDescription>Customize how HabitHero looks</CardDescription>
+                  <CardDescription>
+                    Customize how HabitHero looks
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label>Theme</Label>
                     <RadioGroup
                       value={theme}
-                      onValueChange={(value) => setTheme(value as "light" | "dark" | "system")}
+                      onValueChange={(value) =>
+                        setTheme(value as "light" | "dark" | "system")
+                      }
                       className="flex space-x-4"
                     >
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="light" id="theme-light" />
-                        <Label htmlFor="theme-light" className="flex items-center">
+                        <Label
+                          htmlFor="theme-light"
+                          className="flex items-center"
+                        >
                           <Sun className="mr-2 h-4 w-4" />
                           Light
                         </Label>
                       </div>
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="dark" id="theme-dark" />
-                        <Label htmlFor="theme-dark" className="flex items-center">
+                        <Label
+                          htmlFor="theme-dark"
+                          className="flex items-center"
+                        >
                           <Moon className="mr-2 h-4 w-4" />
                           Dark
                         </Label>
@@ -145,13 +182,17 @@ export default function SettingsPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Notifications</CardTitle>
-                  <CardDescription>Configure your notification preferences</CardDescription>
+                  <CardDescription>
+                    Configure your notification preferences
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                       <Bell className="h-4 w-4" />
-                      <Label htmlFor="push-notifications">Push Notifications</Label>
+                      <Label htmlFor="push-notifications">
+                        Push Notifications
+                      </Label>
                     </div>
                     <Switch id="push-notifications" defaultChecked />
                   </div>
@@ -159,7 +200,9 @@ export default function SettingsPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                       <Bell className="h-4 w-4" />
-                      <Label htmlFor="email-notifications">Email Notifications</Label>
+                      <Label htmlFor="email-notifications">
+                        Email Notifications
+                      </Label>
                     </div>
                     <Switch id="email-notifications" defaultChecked />
                   </div>
@@ -167,7 +210,9 @@ export default function SettingsPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                       <Bell className="h-4 w-4" />
-                      <Label htmlFor="reminder-notifications">Habit Reminders</Label>
+                      <Label htmlFor="reminder-notifications">
+                        Habit Reminders
+                      </Label>
                     </div>
                     <Switch id="reminder-notifications" defaultChecked />
                   </div>
@@ -176,7 +221,10 @@ export default function SettingsPage() {
                     <Label htmlFor="quiet-hours-start">Quiet Hours</Label>
                     <div className="flex items-center space-x-2">
                       <Select defaultValue="22">
-                        <SelectTrigger id="quiet-hours-start" className="w-[120px]">
+                        <SelectTrigger
+                          id="quiet-hours-start"
+                          className="w-[120px]"
+                        >
                           <SelectValue placeholder="Start" />
                         </SelectTrigger>
                         <SelectContent>
@@ -189,7 +237,10 @@ export default function SettingsPage() {
                       </Select>
                       <span>to</span>
                       <Select defaultValue="7">
-                        <SelectTrigger id="quiet-hours-end" className="w-[120px]">
+                        <SelectTrigger
+                          id="quiet-hours-end"
+                          className="w-[120px]"
+                        >
                           <SelectValue placeholder="End" />
                         </SelectTrigger>
                         <SelectContent>
@@ -208,13 +259,17 @@ export default function SettingsPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Data & Privacy</CardTitle>
-                  <CardDescription>Manage your data and privacy settings</CardDescription>
+                  <CardDescription>
+                    Manage your data and privacy settings
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
                       <Label htmlFor="analytics">Usage Analytics</Label>
-                      <p className="text-sm text-muted-foreground">Help us improve by sharing anonymous usage data</p>
+                      <p className="text-sm text-muted-foreground">
+                        Help us improve by sharing anonymous usage data
+                      </p>
                     </div>
                     <Switch id="analytics" defaultChecked />
                   </div>
@@ -237,6 +292,5 @@ export default function SettingsPage() {
         </div>
       </main>
     </div>
-  )
+  );
 }
-

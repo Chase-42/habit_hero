@@ -35,7 +35,7 @@ export function HabitCategoryChart({ habits }: HabitCategoryChartProps) {
     ];
     const categoryCounts = categories.map((category) => {
       const count = habits.filter(
-        (habit) => habit.category === category,
+        (habit) => habit.category === category
       ).length;
       return {
         name: category,

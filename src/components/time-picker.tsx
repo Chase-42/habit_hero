@@ -33,14 +33,14 @@ export function TimePicker({ value, onChange, className }: TimePickerProps) {
   const handleHoursChange = (hours: number) => {
     setHours(hours);
     onChange(
-      `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`,
+      `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`
     );
   };
 
   const handleMinutesChange = (minutes: number) => {
     setMinutes(minutes);
     onChange(
-      `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`,
+      `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`
     );
   };
 
@@ -52,7 +52,7 @@ export function TimePicker({ value, onChange, className }: TimePickerProps) {
           className={cn(
             "w-full justify-start text-left font-normal",
             !value && "text-muted-foreground",
-            className,
+            className
           )}
         >
           <Clock className="mr-2 h-4 w-4" />

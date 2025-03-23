@@ -32,16 +32,16 @@ export function StatsCards({ habits, habitLogs }: StatsCardsProps) {
 
       // Count active habits
       const activeHabits = habits.filter(
-        (habit) => habit.isActive && !habit.isArchived,
+        (habit) => habit.isActive && !habit.isArchived
       );
 
       // Count habits completed today
       const completedToday = activeHabits.filter((habit) =>
-        habitLogs.some(
-          (log) =>
-            log.habitId === habit.id &&
-            log.completedAt.toISOString().split("T")[0] === today,
-        ),
+        habitLogs.some((log) => {
+          const completedAt = new Date(log.completedAt);
+          const logDate = completedAt.toISOString().split("T")[0];
+          return log.habitId === habit.id && logDate === today;
+        })
       ).length;
 
       // Calculate completion rate for the past week
@@ -51,7 +51,8 @@ export function StatsCards({ habits, habitLogs }: StatsCardsProps) {
       if (!weekAgoStr) return;
 
       const recentLogs = habitLogs.filter((log) => {
-        const logDate = log.completedAt.toISOString().split("T")[0];
+        const completedAt = new Date(log.completedAt);
+        const logDate = completedAt.toISOString().split("T")[0];
         return logDate && logDate >= weekAgoStr;
       });
 
@@ -63,7 +64,7 @@ export function StatsCards({ habits, habitLogs }: StatsCardsProps) {
       // Get the highest streak from habits
       const currentStreak = Math.max(
         0,
-        ...activeHabits.map((habit) => habit.streak),
+        ...activeHabits.map((habit) => habit.streak)
       );
 
       setStats({

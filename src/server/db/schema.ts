@@ -1,13 +1,19 @@
-import { 
-  int, 
-  text, 
-  singlestoreTable, 
+import {
+  int,
+  text,
+  singlestoreTable,
   timestamp,
   boolean,
   json,
-  index
+  index,
 } from "drizzle-orm/singlestore-core";
-import type { FrequencyValue, HabitColor, HabitCategory, FrequencyType, HabitDetails } from "~/types";
+import type {
+  FrequencyValue,
+  HabitColor,
+  HabitCategory,
+  FrequencyType,
+  HabitDetails,
+} from "~/types";
 
 // Main habits table
 export const habits = singlestoreTable(
@@ -40,11 +46,13 @@ export const habits = singlestoreTable(
   },
   (table) => [
     index("userId_idx").on(table.userId),
-    index("category_idx").on(table.category)
+    index("category_idx").on(table.category),
   ]
 );
 
 // For tracking individual habit completions
+// Table name: habit_hero_habit_logs
+// This table is referenced as 'habitLogs' in our code
 export const habitLogs = singlestoreTable(
   "habit_hero_habit_logs",
   {
@@ -65,7 +73,7 @@ export const habitLogs = singlestoreTable(
   (table) => [
     index("habitId_idx").on(table.habitId),
     index("userId_idx").on(table.userId),
-    index("completedAt_idx").on(table.completedAt)
+    index("completedAt_idx").on(table.completedAt),
   ]
 );
 
@@ -89,7 +97,5 @@ export const goals = singlestoreTable(
     createdAt: timestamp("createdAt").defaultNow(),
     updatedAt: timestamp("updatedAt").defaultNow(),
   },
-  (table) => [
-    index("userId_idx").on(table.userId)
-  ]
+  (table) => [index("userId_idx").on(table.userId)]
 );

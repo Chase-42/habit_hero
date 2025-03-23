@@ -47,16 +47,18 @@ export function HabitCalendar({ habits, habitLogs }: HabitCalendarProps) {
     const date = new Date(
       currentMonth.getFullYear(),
       currentMonth.getMonth(),
-      day,
+      day
     );
     const dateStr = date.toISOString().split("T")[0];
 
     return habits.some((habit) =>
-      habitLogs.some(
-        (log) =>
+      habitLogs.some((log) => {
+        const completedAt = new Date(log.completedAt);
+        return (
           log.habitId === habit.id &&
-          log.completedAt.toISOString().split("T")[0] === dateStr,
-      ),
+          completedAt.toISOString().split("T")[0] === dateStr
+        );
+      })
     );
   };
 
@@ -72,8 +74,8 @@ export function HabitCalendar({ habits, habitLogs }: HabitCalendarProps) {
               new Date(
                 currentMonth.getFullYear(),
                 currentMonth.getMonth() - 1,
-                1,
-              ),
+                1
+              )
             )
           }
         >
@@ -92,8 +94,8 @@ export function HabitCalendar({ habits, habitLogs }: HabitCalendarProps) {
               new Date(
                 currentMonth.getFullYear(),
                 currentMonth.getMonth() + 1,
-                1,
-              ),
+                1
+              )
             )
           }
         >
@@ -117,7 +119,7 @@ export function HabitCalendar({ habits, habitLogs }: HabitCalendarProps) {
                   ? "bg-muted"
                   : isDateCompleted(day)
                     ? "bg-green-500 text-white"
-                    : "bg-card",
+                    : "bg-card"
               )}
             >
               {day}
