@@ -21,17 +21,17 @@ import { WeeklyProgress } from "~/components/weekly-progress";
 import { HabitCategoryChart } from "~/components/habit-category-chart";
 import { ThemeToggle } from "~/components/theme-toggle";
 import type { Habit, HabitLog } from "~/types";
+import {
+  createHabit,
+  fetchHabits,
+  toggleHabit,
+  fetchTodaysLogs,
+} from "~/lib/api-client";
 
 type NewHabit = Omit<
   Habit,
   "id" | "createdAt" | "updatedAt" | "streak" | "longestStreak"
 >;
-
-interface ErrorResponse {
-  error: {
-    message: string;
-  };
-}
 
 export function DashboardPage() {
   const [habits, setHabits] = useState<Habit[]>([]);
@@ -46,20 +46,7 @@ export function DashboardPage() {
     setError(null);
 
     try {
-      const response = await fetch("/api/habits", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(newHabit),
-      });
-
-      if (!response.ok) {
-        const errorData = (await response.json()) as ErrorResponse;
-        throw new Error(errorData.error?.message || "Failed to create habit");
-      }
-
-      const habit = (await response.json()) as Habit;
+      const habit = await createHabit(newHabit);
       console.log("Added new habit:", habit);
       setHabits((currentHabits) => [...currentHabits, habit]);
       setIsAddHabitOpen(false);
@@ -79,12 +66,14 @@ export function DashboardPage() {
       setError(null);
 
       try {
-        const response = await fetch(`/api/habits?userId=${userId}`);
-        if (!response.ok) {
-          throw new Error("Failed to load habits");
-        }
-        const habits = (await response.json()) as Habit[];
+        const habits = await fetchHabits(userId);
         setHabits(habits);
+
+        // Load today's logs for all habits
+        const allLogs = await Promise.all(
+          habits.map((habit) => fetchTodaysLogs(habit.id))
+        );
+        setHabitLogs(allLogs.flat());
       } catch (err) {
         console.error("Error loading habits:", err);
         setError(err instanceof Error ? err.message : "Failed to load habits");
@@ -96,6 +85,7 @@ export function DashboardPage() {
     void loadHabits();
   }, [userId]);
 
+<<<<<<< Updated upstream
   const completeHabit = (id: string) => {
     const now = new Date();
     const today = now.toISOString().split("T")[0];
@@ -164,6 +154,81 @@ export function DashboardPage() {
             : habit,
         ),
       );
+=======
+  const handleCompleteHabit = async (habit: Habit) => {
+    try {
+      // Check if the habit is already completed today
+      const today = new Date().toISOString().split("T")[0];
+      const isCompleted = habitLogs.some(
+        (log) =>
+          log.habitId === habit.id &&
+          new Date(log.completedAt).toISOString().split("T")[0] === today
+      );
+
+      // Optimistically update the UI
+      const updatedStreak = isCompleted
+        ? Math.max(0, habit.streak - 1)
+        : habit.streak + 1;
+      const updatedLongestStreak = isCompleted
+        ? habit.longestStreak
+        : Math.max(habit.longestStreak, updatedStreak);
+
+      // Update habits immediately
+      setHabits((currentHabits) =>
+        currentHabits.map((h) =>
+          h.id === habit.id
+            ? {
+                ...h,
+                streak: updatedStreak,
+                longestStreak: updatedLongestStreak,
+                lastCompleted: isCompleted ? null : new Date(),
+              }
+            : h
+        )
+      );
+
+      // Update logs immediately
+      if (isCompleted) {
+        setHabitLogs((currentLogs) =>
+          currentLogs.filter(
+            (log) =>
+              !(
+                log.habitId === habit.id &&
+                new Date(log.completedAt).toISOString().split("T")[0] === today
+              )
+          )
+        );
+      } else {
+        const newLog: HabitLog = {
+          id: crypto.randomUUID(),
+          habitId: habit.id,
+          userId: habit.userId,
+          completedAt: new Date(),
+          value: null,
+          notes: null,
+          details: null,
+          difficulty: null,
+          feeling: null,
+          hasPhoto: false,
+          photoUrl: null,
+        };
+        setHabitLogs((currentLogs) => [...currentLogs, newLog]);
+      }
+
+      // Make the API call
+      await toggleHabit(habit, isCompleted);
+    } catch (err) {
+      console.error("Error toggling habit:", err);
+      setError(err instanceof Error ? err.message : "Failed to toggle habit");
+
+      // If the API call fails, reload the data to ensure consistency
+      const updatedHabits = await fetchHabits(userId);
+      setHabits(updatedHabits);
+      const updatedLogs = await Promise.all(
+        updatedHabits.map((habit) => fetchTodaysLogs(habit.id))
+      );
+      setHabitLogs(updatedLogs.flat());
+>>>>>>> Stashed changes
     }
   };
 
@@ -205,9 +270,10 @@ export function DashboardPage() {
           </div>
         </div>
       </header>
+
       <main className="flex-1">
         <div className="container py-6">
-          <div className="flex items-center justify-between">
+          <div className="mb-4 flex items-center justify-between">
             <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
             <Button
               onClick={() => setIsAddHabitOpen(true)}
@@ -253,9 +319,9 @@ export function DashboardPage() {
                     </Card>
                     <Card className="lg:col-span-3">
                       <CardHeader>
-                        <CardTitle>Habits by Category</CardTitle>
+                        <CardTitle>Categories</CardTitle>
                         <CardDescription>
-                          Distribution of your habits by category
+                          Distribution of your habits
                         </CardDescription>
                       </CardHeader>
                       <CardContent>
@@ -263,6 +329,7 @@ export function DashboardPage() {
                       </CardContent>
                     </Card>
                   </div>
+
                   <Card>
                     <CardHeader>
                       <CardTitle>Today&apos;s Habits</CardTitle>
@@ -274,7 +341,7 @@ export function DashboardPage() {
                       <HabitList
                         habits={getTodayHabits()}
                         habitLogs={habitLogs}
-                        onComplete={completeHabit}
+                        onComplete={handleCompleteHabit}
                       />
                     </CardContent>
                   </Card>
@@ -289,7 +356,7 @@ export function DashboardPage() {
                       <HabitList
                         habits={habits}
                         habitLogs={habitLogs}
-                        onComplete={completeHabit}
+                        onComplete={handleCompleteHabit}
                         showAll
                       />
                     </CardContent>
@@ -316,6 +383,7 @@ export function DashboardPage() {
           )}
         </div>
       </main>
+
       <AddHabitModal
         open={isAddHabitOpen}
         onOpenChange={setIsAddHabitOpen}
