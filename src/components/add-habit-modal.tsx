@@ -203,7 +203,7 @@ export function AddHabitModal({
                   role="combobox"
                   className={cn(
                     "w-full justify-between",
-                    !category && "text-muted-foreground",
+                    !category && "text-muted-foreground"
                   )}
                 >
                   {categories.find((c) => c.value === category)?.label ??
@@ -226,9 +226,7 @@ export function AddHabitModal({
                           <Check
                             className={cn(
                               "mr-2 h-4 w-4",
-                              category === c.value
-                                ? "opacity-100"
-                                : "opacity-0",
+                              category === c.value ? "opacity-100" : "opacity-0"
                             )}
                           />
                           {c.label}
@@ -287,7 +285,7 @@ export function AddHabitModal({
                         setSelectedDays(
                           checked
                             ? [...selectedDays, day.value]
-                            : selectedDays.filter((d) => d !== day.value),
+                            : selectedDays.filter((d) => d !== day.value)
                         );
                       }}
                     />
@@ -308,7 +306,7 @@ export function AddHabitModal({
                   variant="outline"
                   className={cn(
                     "h-8 w-8 rounded-full border-2 p-0",
-                    color === c.value && "border-black dark:border-white",
+                    color === c.value && "border-black dark:border-white"
                   )}
                   onClick={() => setColor(c.value)}
                 >

@@ -1,21 +1,33 @@
-export type HabitColor = "red" | "green" | "blue" | "yellow" | "purple" | "pink" | "orange";
+export type HabitColor =
+  | "red"
+  | "green"
+  | "blue"
+  | "yellow"
+  | "purple"
+  | "pink"
+  | "orange";
 
-export type HabitCategory = "fitness" | "nutrition" | "mindfulness" | "productivity" | "other";
+export type HabitCategory =
+  | "fitness"
+  | "nutrition"
+  | "mindfulness"
+  | "productivity"
+  | "other";
 
 export type FrequencyType = "daily" | "weekly" | "monthly";
 
 export type FrequencyValue = {
   days?: number[]; // 0-6 for weekly (0 = Sunday)
-  times?: number;  // X times per period
+  times?: number; // X times per period
 };
 
 export type HabitDetails = {
-  duration?: number;    // in minutes
-  distance?: number;    // in specified units
+  duration?: number; // in minutes
+  distance?: number; // in specified units
   sets?: number;
   reps?: number;
-  weight?: number;     // in specified units
-  intensity?: number;  // 1-10 scale
+  weight?: number; // in specified units
+  intensity?: number; // 1-10 scale
   customFields?: Record<string, string | number | boolean>;
 };
 
@@ -82,4 +94,22 @@ export interface Goal {
   updatedAt?: Date;
 }
 
- 
+export interface HabitFilters {
+  userId: string;
+  isActive?: boolean;
+  isArchived?: boolean;
+  category?: HabitCategory;
+  searchQuery?: string;
+}
+
+export interface CompletionSummary {
+  date: Date;
+  count: number;
+  details: HabitLog[];
+}
+
+export interface StreakSummary {
+  date: Date;
+  streak: number;
+  wasStreakBroken: boolean;
+}

@@ -6,13 +6,31 @@ import { z } from "zod";
 const habitInput = z.object({
   name: z.string(),
   userId: z.string(),
-  color: z.enum(["red", "green", "blue", "yellow", "purple", "pink", "orange"] as const satisfies readonly HabitColor[]),
-  frequencyType: z.enum(["daily", "weekly", "monthly"] as const satisfies readonly FrequencyType[]),
+  color: z.enum([
+    "red",
+    "green",
+    "blue",
+    "yellow",
+    "purple",
+    "pink",
+    "orange",
+  ] as const satisfies readonly HabitColor[]),
+  frequencyType: z.enum([
+    "daily",
+    "weekly",
+    "monthly",
+  ] as const satisfies readonly FrequencyType[]),
   frequencyValue: z.object({
     days: z.array(z.number()).optional(),
     times: z.number().optional(),
   }),
-  category: z.enum(["fitness", "nutrition", "mindfulness", "productivity", "other"] as const satisfies readonly HabitCategory[]),
+  category: z.enum([
+    "fitness",
+    "nutrition",
+    "mindfulness",
+    "productivity",
+    "other",
+  ] as const satisfies readonly HabitCategory[]),
   isActive: z.literal(true),
   isArchived: z.literal(false),
   // Optional fields
@@ -25,12 +43,14 @@ const habitInput = z.object({
   reminder: z.coerce.date().nullable(),
   reminderEnabled: z.boolean().nullable(),
   lastCompleted: z.coerce.date().nullable(),
-}) satisfies z.ZodType<Omit<Habit, "id" | "createdAt" | "updatedAt" | "streak" | "longestStreak">>;
+}) satisfies z.ZodType<
+  Omit<Habit, "id" | "createdAt" | "updatedAt" | "streak" | "longestStreak">
+>;
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const userId = searchParams.get("userId");
-  
+
   if (!userId) {
     return NextResponse.json({ error: "userId is required" }, { status: 400 });
   }
@@ -40,7 +60,10 @@ export async function GET(request: Request) {
     return NextResponse.json(habits);
   } catch (error) {
     console.error("Error fetching habits:", error);
-    return NextResponse.json({ error: "Failed to fetch habits" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch habits" },
+      { status: 500 }
+    );
   }
 }
 
@@ -54,8 +77,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.errors }, { status: 400 });
     }
     console.error("Error creating habit:", error);
-    return NextResponse.json({ error: "Failed to create habit" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to create habit" },
+      { status: 500 }
+    );
   }
 }
-
-

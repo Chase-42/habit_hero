@@ -1,6 +1,7 @@
 import type React from "react";
 import { ThemeProvider } from "~/components/theme-provider";
 import "./globals.css";
+import { Toaster } from "~/components/ui/sonner";
 
 export default function RootLayout({
   children,
@@ -30,6 +31,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen bg-background">
         <ThemeProvider>{children}</ThemeProvider>
+        <Toaster closeButton position="top-center" />
       </body>
     </html>
   );

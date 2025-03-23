@@ -66,7 +66,7 @@ export function DashboardPage() {
     } catch (err) {
       console.error("Error adding habit:", err);
       setError(err instanceof Error ? err.message : "Failed to create habit");
-      throw err; // Re-throw to be handled by the modal
+      throw err;
     } finally {
       setIsLoading(false);
     }
@@ -96,50 +96,12 @@ export function DashboardPage() {
     void loadHabits();
   }, [userId]);
 
-  const completeHabit = (id: string) => {
-    const now = new Date();
-    const today = now.toISOString().split("T")[0];
-
-    // Check if already completed today
-    const existingLog = habitLogs.find(
-      (log) =>
-        log.habitId === id &&
-        log.completedAt.toISOString().split("T")[0] === today,
-    );
-
-    if (existingLog) {
-      // Remove the log if already completed
-      setHabitLogs((currentLogs) =>
-        currentLogs.filter((log) => log.id !== existingLog.id),
-      );
-
-      // Update streak
-      setHabits((currentHabits) =>
-        currentHabits.map((habit) =>
-          habit.id === id
-            ? {
-                ...habit,
-                streak: Math.max(0, habit.streak - 1),
-                lastCompleted:
-                  habitLogs
-                    .filter(
-                      (log) => log.habitId === id && log.id !== existingLog.id,
-                    )
-                    .sort(
-                      (a, b) =>
-                        b.completedAt.getTime() - a.completedAt.getTime(),
-                    )[0]?.completedAt ?? null,
-              }
-            : habit,
-        ),
-      );
-    } else {
-      // Add new log
-      const newLog: HabitLog = {
-        id: Date.now().toString(),
-        habitId: id,
-        userId,
-        completedAt: now,
+  const completeHabit = async (habit: Habit) => {
+    try {
+      const logData = {
+        habitId: habit.id,
+        userId: habit.userId,
+        completedAt: new Date(),
         value: null,
         notes: null,
         details: null,
@@ -149,21 +111,45 @@ export function DashboardPage() {
         photoUrl: null,
       };
 
-      setHabitLogs((currentLogs) => [...currentLogs, newLog]);
+      const response = await fetch("/api/habits/logs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(logData),
+      });
 
-      // Update streak and last completed
-      setHabits((currentHabits) =>
-        currentHabits.map((habit) =>
-          habit.id === id
-            ? {
-                ...habit,
-                streak: habit.streak + 1,
-                longestStreak: Math.max(habit.longestStreak, habit.streak + 1),
-                lastCompleted: now,
-              }
-            : habit,
-        ),
+      if (!response.ok) {
+        const errorData = (await response.json()) as { error: string };
+        throw new Error(errorData.error || "Failed to complete habit");
+      }
+
+      // Reload habits and logs to get updated state
+      const habitsResponse = await fetch(`/api/habits?userId=${userId}`);
+      if (!habitsResponse.ok) {
+        throw new Error("Failed to reload habits");
+      }
+      const updatedHabits = (await habitsResponse.json()) as Habit[];
+      setHabits(updatedHabits);
+
+      // Get today's logs
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      const logsResponse = await fetch(
+        `/api/habits/logs?habitId=${habit.id}&startDate=${today.toISOString()}&endDate=${tomorrow.toISOString()}`
       );
+      if (!logsResponse.ok) {
+        throw new Error("Failed to reload logs");
+      }
+      const updatedLogs = (await logsResponse.json()) as HabitLog[];
+      setHabitLogs((currentLogs) => [
+        ...currentLogs.filter((log) => log.habitId !== habit.id),
+        ...updatedLogs,
+      ]);
+    } catch (err) {
+      console.error("Error completing habit:", err);
+      setError(err instanceof Error ? err.message : "Failed to complete habit");
     }
   };
 

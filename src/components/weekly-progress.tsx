@@ -53,11 +53,14 @@ export function WeeklyProgress({ habits, habitLogs }: WeeklyProgressProps) {
 
       // Count completed habits for this day
       const completedHabits = habits.filter((habit) =>
-        habitLogs.some(
-          (log) =>
+        habitLogs.some((log) => {
+          // Parse completedAt string into a Date object
+          const completedAt = new Date(log.completedAt);
+          return (
             log.habitId === habit.id &&
-            log.completedAt.toISOString().split("T")[0] === dateStr,
-        ),
+            completedAt.toISOString().split("T")[0] === dateStr
+          );
+        })
       ).length;
 
       data.push({

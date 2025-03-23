@@ -69,7 +69,7 @@ const ChartTooltipContent = React.forwardRef<
       formatter,
       color,
     },
-    ref,
+    ref
   ) => {
     if (!active || !payload?.length) {
       return null;
@@ -80,7 +80,7 @@ const ChartTooltipContent = React.forwardRef<
         ref={ref}
         className={cn(
           "grid min-w-[8rem] items-start gap-1.5 rounded-lg border border-border/50 bg-background px-2.5 py-1.5 text-xs shadow-xl",
-          className,
+          className
         )}
       >
         {!hideLabel && label && <div className="font-medium">{label}</div>}
@@ -93,7 +93,7 @@ const ChartTooltipContent = React.forwardRef<
                 key={index}
                 className={cn(
                   "flex w-full flex-wrap items-stretch gap-2",
-                  indicator === "dot" && "items-center",
+                  indicator === "dot" && "items-center"
                 )}
               >
                 {!hideIndicator && (
@@ -126,7 +126,7 @@ const ChartTooltipContent = React.forwardRef<
                     {formatter && item.value !== undefined
                       ? formatter(
                           String(item.value),
-                          String(item.name ?? "value"),
+                          String(item.name ?? "value")
                         )
                       : item.value}
                   </div>
@@ -137,7 +137,7 @@ const ChartTooltipContent = React.forwardRef<
         </div>
       </div>
     );
-  },
+  }
 );
 ChartTooltipContent.displayName = "ChartTooltipContent";
 
