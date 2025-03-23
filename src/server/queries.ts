@@ -1,18 +1,31 @@
 import { db } from "~/server/db";
 import { habits, habitLogs } from "~/server/db/schema";
-import type { Habit, HabitFilters, HabitLog } from "~/types";
+import type { Habit, HabitFilters, HabitLog, HabitCategory } from "~/types";
 import { eq, like, or, and, type SQL, between } from "drizzle-orm";
 
-export async function getHabits(userId: string): Promise<Habit[]> {
+// Define types from the schema
+type HabitRow = typeof habits.$inferSelect;
+
+// Define a type-safe filter interface based on the schema
+type HabitFilter = {
+  userId: string;
+  isActive?: boolean;
+  isArchived?: boolean;
+  category?: HabitCategory;
+  searchQuery?: string;
+};
+
+export async function getHabits(userId: string): Promise<HabitRow[]> {
   return db.select().from(habits).where(eq(habits.userId, userId));
 }
 
 export async function getFilteredHabits(
-  filters: HabitFilters
-): Promise<Habit[]> {
+  filters: HabitFilter
+): Promise<HabitRow[]> {
   const { userId, isActive, isArchived, category, searchQuery } = filters;
 
-  const conditions = [eq(habits.userId, userId)];
+  const conditions: SQL<unknown>[] = [];
+  conditions.push(eq(habits.userId, userId));
 
   if (typeof isActive === "boolean") {
     conditions.push(eq(habits.isActive, isActive));
@@ -29,6 +42,7 @@ export async function getFilteredHabits(
   if (searchQuery) {
     conditions.push(like(habits.name, `%${searchQuery}%`));
   }
+
   return db
     .select()
     .from(habits)

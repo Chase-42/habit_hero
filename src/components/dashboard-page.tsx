@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Calendar, Plus, Settings } from "lucide-react";
+import { Calendar, Plus, Settings, ChevronRight } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "~/components/ui/button";
@@ -18,7 +18,7 @@ import { HabitCalendar } from "~/components/habit-calendar";
 import { HabitList } from "~/components/habit-list";
 import { StatsCards } from "~/components/stats-cards";
 import { WeeklyProgress } from "~/components/weekly-progress";
-import { HabitCategoryChart } from "~/components/habit-category-chart";
+import { StreakHeatmap } from "~/components/streak-heatmap";
 import { ThemeToggle } from "~/components/theme-toggle";
 import type { Habit, HabitLog } from "~/types";
 import {
@@ -85,76 +85,6 @@ export function DashboardPage() {
     void loadHabits();
   }, [userId]);
 
-<<<<<<< Updated upstream
-  const completeHabit = (id: string) => {
-    const now = new Date();
-    const today = now.toISOString().split("T")[0];
-
-    // Check if already completed today
-    const existingLog = habitLogs.find(
-      (log) =>
-        log.habitId === id &&
-        log.completedAt.toISOString().split("T")[0] === today,
-    );
-
-    if (existingLog) {
-      // Remove the log if already completed
-      setHabitLogs((currentLogs) =>
-        currentLogs.filter((log) => log.id !== existingLog.id),
-      );
-
-      // Update streak
-      setHabits((currentHabits) =>
-        currentHabits.map((habit) =>
-          habit.id === id
-            ? {
-                ...habit,
-                streak: Math.max(0, habit.streak - 1),
-                lastCompleted:
-                  habitLogs
-                    .filter(
-                      (log) => log.habitId === id && log.id !== existingLog.id,
-                    )
-                    .sort(
-                      (a, b) =>
-                        b.completedAt.getTime() - a.completedAt.getTime(),
-                    )[0]?.completedAt ?? null,
-              }
-            : habit,
-        ),
-      );
-    } else {
-      // Add new log
-      const newLog: HabitLog = {
-        id: Date.now().toString(),
-        habitId: id,
-        userId,
-        completedAt: now,
-        value: null,
-        notes: null,
-        details: null,
-        difficulty: null,
-        feeling: null,
-        hasPhoto: false,
-        photoUrl: null,
-      };
-
-      setHabitLogs((currentLogs) => [...currentLogs, newLog]);
-
-      // Update streak and last completed
-      setHabits((currentHabits) =>
-        currentHabits.map((habit) =>
-          habit.id === id
-            ? {
-                ...habit,
-                streak: habit.streak + 1,
-                longestStreak: Math.max(habit.longestStreak, habit.streak + 1),
-                lastCompleted: now,
-              }
-            : habit,
-        ),
-      );
-=======
   const handleCompleteHabit = async (habit: Habit) => {
     try {
       // Check if the habit is already completed today
@@ -228,7 +158,6 @@ export function DashboardPage() {
         updatedHabits.map((habit) => fetchTodaysLogs(habit.id))
       );
       setHabitLogs(updatedLogs.flat());
->>>>>>> Stashed changes
     }
   };
 
@@ -257,9 +186,25 @@ export function DashboardPage() {
       <header className="sticky top-0 z-10 border-b bg-background">
         <div className="container flex h-16 items-center justify-between py-4">
           <div className="flex items-center gap-2">
-            <span className="text-2xl font-bold">HabitHero</span>
+            <Link href="/" className="text-2xl font-bold hover:text-primary">
+              HabitHero
+            </Link>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <ChevronRight className="h-4 w-4" />
+              <Link href="/dashboard" className="hover:text-foreground">
+                Dashboard
+              </Link>
+            </div>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setIsAddHabitOpen(true)}
+              disabled={isLoading}
+              size="sm"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add Habit
+            </Button>
             <ThemeToggle />
             <Link href="/settings">
               <Button variant="ghost" size="icon">
@@ -273,17 +218,6 @@ export function DashboardPage() {
 
       <main className="flex-1">
         <div className="container py-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-            <Button
-              onClick={() => setIsAddHabitOpen(true)}
-              disabled={isLoading}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add Habit
-            </Button>
-          </div>
-
           {error && (
             <div className="my-4 rounded-md bg-red-50 p-4 text-red-700">
               {error}
@@ -319,13 +253,13 @@ export function DashboardPage() {
                     </Card>
                     <Card className="lg:col-span-3">
                       <CardHeader>
-                        <CardTitle>Categories</CardTitle>
+                        <CardTitle>Completion History</CardTitle>
                         <CardDescription>
-                          Distribution of your habits
+                          Your habit completion patterns over time
                         </CardDescription>
                       </CardHeader>
                       <CardContent>
-                        <HabitCategoryChart habits={habits} />
+                        <StreakHeatmap habits={habits} habitLogs={habitLogs} />
                       </CardContent>
                     </Card>
                   </div>

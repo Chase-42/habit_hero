@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useHabits } from "~/hooks/use-habits";
 import type { Habit, HabitLog } from "~/types";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
@@ -8,7 +8,7 @@ import { Button } from "~/components/ui/button";
 import { AddHabitModal } from "~/components/add-habit-modal";
 import { HabitList } from "~/components/habit-list";
 import { HabitCategoryChart } from "~/components/habit-category-chart";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { Skeleton } from "~/components/ui/skeleton";
 import { toast } from "sonner";
 
@@ -24,20 +24,10 @@ export function HabitDashboard({ userId }: HabitDashboardProps) {
     "active"
   );
 
-  const {
-    isLoading,
-    error,
-    fetchHabits,
-    fetchFilteredHabits,
-    logHabit,
-    fetchHabitLogs,
-  } = useHabits(userId);
+  const { isLoading, error, fetchFilteredHabits, logHabit, fetchHabitLogs } =
+    useHabits(userId);
 
-  useEffect(() => {
-    void loadHabits();
-  }, [activeTab]);
-
-  const loadHabits = async () => {
+  const loadHabits = useCallback(async () => {
     try {
       const filters = {
         userId,
@@ -65,7 +55,11 @@ export function HabitDashboard({ userId }: HabitDashboardProps) {
       console.error("Error loading habits:", err);
       toast.error("Failed to load habits. Please try again.");
     }
-  };
+  }, [activeTab, fetchFilteredHabits, userId, fetchHabitLogs]);
+
+  useEffect(() => {
+    void loadHabits();
+  }, [loadHabits]);
 
   const handleAddHabit = async (
     habit: Omit<

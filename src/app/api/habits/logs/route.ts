@@ -18,8 +18,6 @@ const habitLogInput = z.object({
   photoUrl: z.string().nullable(),
 });
 
-type HabitLogInput = z.infer<typeof habitLogInput>;
-
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
