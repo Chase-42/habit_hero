@@ -1,6 +1,6 @@
 "use client";
 import { Check, ChevronsUpDown } from "lucide-react";
-
+import { useState } from "react";
 import { Button } from "~/components/ui/button";
 import {
   Command,
@@ -18,15 +18,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "~/components/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "~/components/ui/form";
 import { Input } from "~/components/ui/input";
 import {
   Popover,
@@ -35,35 +26,24 @@ import {
 } from "~/components/ui/popover";
 import { Textarea } from "~/components/ui/textarea";
 import { cn } from "~/lib/utils";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import * as z from "zod";
 import { Checkbox } from "~/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group";
 import { TimePicker } from "~/components/time-picker";
-import type { Habit, HabitColor } from "~/types";
-
-type NewHabit = Omit<
-  Habit,
-  "id" | "createdAt" | "completedDates" | "streak"
-> & {
-  completedDates: string[];
-  streak: number;
-};
+import type { Habit, HabitColor, HabitCategory, FrequencyType } from "~/types";
 
 type Category = {
   label: string;
-  value: string;
+  value: HabitCategory;
 };
 
 type Frequency = {
   label: string;
-  value: "daily" | "weekdays" | "custom";
+  value: FrequencyType;
 };
 
 type Day = {
   label: string;
-  value: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+  value: number;
 };
 
 type Color = {
@@ -72,18 +52,23 @@ type Color = {
   class: string;
 };
 
+type NewHabit = Omit<
+  Habit,
+  "id" | "createdAt" | "updatedAt" | "streak" | "longestStreak"
+>;
+
 const categories: Category[] = [
   { label: "Fitness", value: "fitness" },
+  { label: "Nutrition", value: "nutrition" },
   { label: "Mindfulness", value: "mindfulness" },
   { label: "Productivity", value: "productivity" },
-  { label: "Health", value: "health" },
-  { label: "Custom", value: "custom" },
+  { label: "Other", value: "other" },
 ];
 
 const frequencies: Frequency[] = [
   { label: "Daily", value: "daily" },
-  { label: "Weekdays", value: "weekdays" },
-  { label: "Custom days", value: "custom" },
+  { label: "Weekly", value: "weekly" },
+  { label: "Monthly", value: "monthly" },
 ];
 
 const days: Day[] = [
@@ -106,68 +91,88 @@ const colors: Color[] = [
   { label: "Orange", value: "orange", class: "bg-orange-500" },
 ];
 
-const formSchema = z.object({
-  name: z.string().min(1, { message: "Habit name is required" }),
-  category: z.string({ required_error: "Please select a category" }),
-  frequency: z.enum(["daily", "weekdays", "custom"], {
-    required_error: "Please select a frequency",
-  }),
-  days: z.array(z.number().min(0).max(6)).optional(),
-  reminder: z.string().optional(),
-  color: z.enum(
-    ["red", "green", "blue", "yellow", "purple", "pink", "orange"] as const,
-    {
-      required_error: "Please select a color",
-    },
-  ),
-  goal: z.number().optional(),
-  notes: z.string().optional(),
-});
-
-type FormValues = z.infer<typeof formSchema>;
-
 interface AddHabitModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAddHabit: (habit: NewHabit) => void;
+  userId: string;
+  onAddHabit: (habit: NewHabit) => Promise<void>;
+  isLoading?: boolean;
 }
 
 export function AddHabitModal({
   open,
   onOpenChange,
+  userId,
   onAddHabit,
+  isLoading = false,
 }: AddHabitModalProps) {
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: "",
-      category: "",
-      frequency: "daily",
-      days: [],
-      reminder: "",
-      color: "blue" as HabitColor,
-      goal: undefined,
-      notes: "",
-    },
-  });
+  const [name, setName] = useState("");
+  const [category, setCategory] = useState<HabitCategory>("other");
+  const [frequencyType, setFrequencyType] = useState<FrequencyType>("daily");
+  const [selectedDays, setSelectedDays] = useState<number[]>([]);
+  const [timesPerFrequency, setTimesPerFrequency] = useState(1);
+  const [color, setColor] = useState<HabitColor>("blue");
+  const [reminder, setReminder] = useState<Date | null>(null);
+  const [goal, setGoal] = useState<number | null>(null);
+  const [notes, setNotes] = useState<string | null>(null);
 
-  function onSubmit(values: FormValues) {
-    const habit: NewHabit = {
-      name: values.name,
-      category: values.category,
-      frequency: values.frequency,
-      days: values.days,
-      reminder: values.reminder,
-      color: values.color as HabitColor,
-      goal: values.goal,
-      notes: values.notes,
-      streak: 0,
-      completedDates: [],
+  const resetForm = () => {
+    setName("");
+    setCategory("other");
+    setFrequencyType("daily");
+    setSelectedDays([]);
+    setTimesPerFrequency(1);
+    setColor("blue");
+    setReminder(null);
+    setGoal(null);
+    setNotes(null);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Validate required fields
+    if (!name) {
+      alert("Please enter a habit name");
+      return;
+    }
+
+    if (frequencyType === "weekly" && selectedDays.length === 0) {
+      alert("Please select at least one day for weekly habits");
+      return;
+    }
+
+    const habit = {
+      name,
+      userId,
+      category,
+      frequencyType,
+      frequencyValue: {
+        days: frequencyType === "weekly" ? selectedDays : [],
+        times: timesPerFrequency,
+      },
+      color,
+      isActive: true,
+      isArchived: false,
+      description: null,
+      subCategory: null,
+      goal,
+      metricType: null,
+      units: null,
+      notes,
+      reminder,
+      reminderEnabled: reminder !== null,
+      lastCompleted: null,
     };
-    onAddHabit(habit);
-    form.reset();
-    onOpenChange(false);
-  }
+
+    try {
+      await onAddHabit(habit);
+      resetForm();
+    } catch (err) {
+      console.error("Error submitting habit:", err);
+      alert(err instanceof Error ? err.message : "Failed to create habit");
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -178,260 +183,187 @@ export function AddHabitModal({
             Create a new habit to track. Fill out the details below.
           </DialogDescription>
         </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Habit Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., Morning Run" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="text-sm font-medium">Habit Name</label>
+            <Input
+              placeholder="e.g., Morning Run"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
             />
+          </div>
 
-            <FormField
-              control={form.control}
-              name="category"
-              render={({ field }) => (
-                <FormItem className="flex flex-col">
-                  <FormLabel>Category</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          className={cn(
-                            "justify-between",
-                            !field.value && "text-muted-foreground",
-                          )}
+          <div>
+            <label className="text-sm font-medium">Category</label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  className={cn(
+                    "w-full justify-between",
+                    !category && "text-muted-foreground",
+                  )}
+                >
+                  {categories.find((c) => c.value === category)?.label ??
+                    "Select category"}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="p-0">
+                <Command>
+                  <CommandInput placeholder="Search category..." />
+                  <CommandList>
+                    <CommandEmpty>No category found.</CommandEmpty>
+                    <CommandGroup>
+                      {categories.map((c) => (
+                        <CommandItem
+                          key={c.value}
+                          value={c.label}
+                          onSelect={() => setCategory(c.value)}
                         >
-                          {categories.find(
-                            (category) => category.value === field.value,
-                          )?.label ?? "Select category"}
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="p-0">
-                      <Command>
-                        <CommandInput placeholder="Search category..." />
-                        <CommandList>
-                          <CommandEmpty>No category found.</CommandEmpty>
-                          <CommandGroup>
-                            {categories.map((category) => (
-                              <CommandItem
-                                value={category.label}
-                                key={category.value}
-                                onSelect={() => {
-                                  form.setValue("category", category.value);
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    category.value === field.value
-                                      ? "opacity-100"
-                                      : "opacity-0",
-                                  )}
-                                />
-                                {category.label}
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="frequency"
-              render={({ field }) => (
-                <FormItem className="space-y-3">
-                  <FormLabel>Frequency</FormLabel>
-                  <FormControl>
-                    <RadioGroup
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                      className="flex flex-col space-y-1"
-                    >
-                      {frequencies.map((frequency) => (
-                        <FormItem
-                          key={frequency.value}
-                          className="flex items-center space-x-3 space-y-0"
-                        >
-                          <FormControl>
-                            <RadioGroupItem value={frequency.value} />
-                          </FormControl>
-                          <FormLabel className="font-normal">
-                            {frequency.label}
-                          </FormLabel>
-                        </FormItem>
-                      ))}
-                    </RadioGroup>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {form.watch("frequency") === "custom" && (
-              <FormField
-                control={form.control}
-                name="days"
-                render={({ field }) => (
-                  <FormItem>
-                    <div className="mb-4">
-                      <FormLabel className="text-base">Select Days</FormLabel>
-                      <FormDescription>
-                        Choose which days of the week to perform this habit.
-                      </FormDescription>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                      {days.map((day) => (
-                        <FormItem
-                          key={day.value}
-                          className="flex items-center space-x-2 space-y-0"
-                        >
-                          <FormControl>
-                            <Checkbox
-                              checked={
-                                Array.isArray(field.value) &&
-                                field.value.includes(day.value)
-                              }
-                              onCheckedChange={(checked) => {
-                                const currentValues = Array.isArray(field.value)
-                                  ? field.value
-                                  : [];
-                                const newValues = checked
-                                  ? [...currentValues, day.value]
-                                  : currentValues.filter(
-                                      (value) => value !== day.value,
-                                    );
-                                field.onChange(newValues);
-                              }}
-                            />
-                          </FormControl>
-                          <FormLabel className="font-normal">
-                            {day.label}
-                          </FormLabel>
-                        </FormItem>
-                      ))}
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
-
-            <FormField
-              control={form.control}
-              name="reminder"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Reminder Time (Optional)</FormLabel>
-                  <FormControl>
-                    <TimePicker value={field.value} onChange={field.onChange} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="color"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Color Tag</FormLabel>
-                  <FormControl>
-                    <div className="flex flex-wrap gap-2">
-                      {colors.map((color) => (
-                        <Button
-                          key={color.value}
-                          type="button"
-                          variant="outline"
-                          className={cn(
-                            "h-8 w-8 rounded-full border-2 p-0",
-                            color.value === field.value &&
-                              "border-black dark:border-white",
-                          )}
-                          onClick={() => form.setValue("color", color.value)}
-                        >
-                          <div
-                            className={cn("h-6 w-6 rounded-full", color.class)}
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              category === c.value
+                                ? "opacity-100"
+                                : "opacity-0",
+                            )}
                           />
-                          <span className="sr-only">{color.label}</span>
-                        </Button>
+                          {c.label}
+                        </CommandItem>
                       ))}
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
 
-            <FormField
-              control={form.control}
-              name="goal"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Goal (Optional)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      placeholder="e.g., 5 (for 5km daily)"
-                      {...field}
-                      onChange={(e) => {
-                        const value = e.target.value
-                          ? Number(e.target.value)
-                          : undefined;
-                        field.onChange(value);
+          <div className="space-y-3">
+            <label className="text-sm font-medium">Frequency</label>
+            <RadioGroup
+              value={frequencyType}
+              onValueChange={(value: FrequencyType) => setFrequencyType(value)}
+              className="flex flex-col space-y-1"
+            >
+              {frequencies.map((frequency) => (
+                <div
+                  key={frequency.value}
+                  className="flex items-center space-x-3"
+                >
+                  <RadioGroupItem value={frequency.value} />
+                  <label className="text-sm">{frequency.label}</label>
+                </div>
+              ))}
+            </RadioGroup>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium">
+              Times per {frequencyType}
+            </label>
+            <Input
+              type="number"
+              min={1}
+              value={timesPerFrequency}
+              onChange={(e) =>
+                setTimesPerFrequency(Number(e.target.value) || 1)
+              }
+              placeholder={`e.g., 2 times per ${frequencyType}`}
+            />
+          </div>
+
+          {frequencyType === "weekly" && (
+            <div className="space-y-3">
+              <label className="text-sm font-medium">Select Days</label>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {days.map((day) => (
+                  <div key={day.value} className="flex items-center space-x-2">
+                    <Checkbox
+                      checked={selectedDays.includes(day.value)}
+                      onCheckedChange={(checked) => {
+                        setSelectedDays(
+                          checked
+                            ? [...selectedDays, day.value]
+                            : selectedDays.filter((d) => d !== day.value),
+                        );
                       }}
-                      value={field.value ?? ""}
                     />
-                  </FormControl>
-                  <FormDescription>
-                    Set a specific goal for this habit.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                    <label className="text-sm">{day.label}</label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Notes (Optional)</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Any additional notes about this habit..."
-                      className="resize-none"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <div>
+            <label className="text-sm font-medium">Color Tag</label>
+            <div className="flex flex-wrap gap-2">
+              {colors.map((c) => (
+                <Button
+                  key={c.value}
+                  type="button"
+                  variant="outline"
+                  className={cn(
+                    "h-8 w-8 rounded-full border-2 p-0",
+                    color === c.value && "border-black dark:border-white",
+                  )}
+                  onClick={() => setColor(c.value)}
+                >
+                  <div className={cn("h-6 w-6 rounded-full", c.class)} />
+                  <span className="sr-only">{c.label}</span>
+                </Button>
+              ))}
+            </div>
+          </div>
 
-            <DialogFooter>
-              <Button type="submit">Create Habit</Button>
-            </DialogFooter>
-          </form>
-        </Form>
+          <div>
+            <label className="text-sm font-medium">
+              Reminder Time (Optional)
+            </label>
+            <TimePicker
+              value={reminder?.toISOString()}
+              onChange={(value) => setReminder(value ? new Date(value) : null)}
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium">Goal (Optional)</label>
+            <Input
+              type="number"
+              placeholder="e.g., 5 (for 5km daily)"
+              value={goal ?? ""}
+              onChange={(e) =>
+                setGoal(e.target.value ? Number(e.target.value) : null)
+              }
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium">Notes (Optional)</label>
+            <Textarea
+              placeholder="Any additional notes about this habit..."
+              className="resize-none"
+              value={notes ?? ""}
+              onChange={(e) => setNotes(e.target.value || null)}
+            />
+          </div>
+
+          <DialogFooter>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent"></div>
+                  Creating...
+                </>
+              ) : (
+                "Create Habit"
+              )}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

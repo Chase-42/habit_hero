@@ -20,6 +20,7 @@ import {
   CardTitle,
 } from "~/components/ui/card";
 import { mockHabits } from "~/lib/mock-data";
+import type { HabitLog } from "~/types";
 
 export default function HabitPage({ params }: { params: { id: string } }) {
   const habit = mockHabits.find((h) => h.id === params.id);
@@ -28,17 +29,21 @@ export default function HabitPage({ params }: { params: { id: string } }) {
     return <div>Habit not found</div>;
   }
 
-  const chartData = habit.completedDates.map((date) => ({
-    date: format(new Date(date), "MMM d"),
-    completed: 1,
-  }));
+  // Assuming we'll get habitLogs from somewhere - for now using empty array
+  const habitLogs: HabitLog[] = [];
+  const chartData = habitLogs
+    .filter((log) => log.habitId === habit.id)
+    .map((log) => ({
+      date: format(new Date(log.completedAt), "MMM d"),
+      completed: 1,
+    }));
 
   return (
     <div className="container py-6">
       <div className="mb-8">
         <h1 className="text-3xl font-bold">{habit.name}</h1>
         <p className="text-muted-foreground">
-          {habit.frequency} • {habit.category}
+          {habit.frequencyType} • {habit.category}
         </p>
       </div>
 
@@ -85,7 +90,9 @@ export default function HabitPage({ params }: { params: { id: string } }) {
               {habit.reminder && (
                 <div>
                   <div className="font-medium">Reminder</div>
-                  <div className="text-muted-foreground">{habit.reminder}</div>
+                  <div className="text-muted-foreground">
+                    {format(habit.reminder, "PPp")}
+                  </div>
                 </div>
               )}
             </CardContent>

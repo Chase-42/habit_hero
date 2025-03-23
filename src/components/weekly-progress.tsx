@@ -8,18 +8,21 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "~/components/ui/chart";
-import type { Habit } from "~/types";
+import type { Habit, HabitLog } from "~/types";
+import { format } from "date-fns";
 
 interface DailyData {
-  name: string;
-  value: number;
+  date: string;
+  total: number;
+  completed: number;
 }
 
-interface WeeklyProgressProps {
+export interface WeeklyProgressProps {
   habits: Habit[];
+  habitLogs: HabitLog[];
 }
 
-export function WeeklyProgress({ habits }: WeeklyProgressProps) {
+export function WeeklyProgress({ habits, habitLogs }: WeeklyProgressProps) {
   // Get data for the past 7 days
   const getDailyData = (): DailyData[] => {
     const data: DailyData[] = [];
@@ -28,34 +31,39 @@ export function WeeklyProgress({ habits }: WeeklyProgressProps) {
     for (let i = 6; i >= 0; i--) {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
-      const dateString = date.toISOString().split("T")[0];
-      if (!dateString) continue;
-
-      const dayName = date.toLocaleDateString("en-US", { weekday: "short" });
-
-      // Count habits that should be done on this day
+      const dateStr = date.toISOString().split("T")[0];
       const dayOfWeek = date.getDay();
-      const habitsForDay = habits.filter(
-        (habit) =>
-          habit.frequency === "daily" ||
-          (habit.frequency === "weekdays" && dayOfWeek > 0 && dayOfWeek < 6) ||
-          (habit.frequency === "custom" && habit.days?.includes(dayOfWeek)),
-      );
+
+      // Count active habits for this day
+      const activeHabits = habits.filter((habit) => {
+        if (!habit.isActive || habit.isArchived) return false;
+
+        if (habit.frequencyType === "daily") return true;
+
+        if (habit.frequencyType === "weekly") {
+          return habit.frequencyValue.days?.includes(dayOfWeek) ?? false;
+        }
+
+        if (habit.frequencyType === "monthly") {
+          return date.getDate() === 1;
+        }
+
+        return false;
+      }).length;
 
       // Count completed habits for this day
-      const completedHabits = habitsForDay.filter((habit) =>
-        habit.completedDates.includes(dateString),
+      const completedHabits = habits.filter((habit) =>
+        habitLogs.some(
+          (log) =>
+            log.habitId === habit.id &&
+            log.completedAt.toISOString().split("T")[0] === dateStr,
+        ),
       ).length;
 
-      // Calculate completion percentage
-      const completionRate =
-        habitsForDay.length > 0
-          ? Math.round((completedHabits / habitsForDay.length) * 100)
-          : 0;
-
       data.push({
-        name: dayName,
-        value: completionRate,
+        date: format(date, "EEE"),
+        total: activeHabits,
+        completed: completedHabits,
       });
     }
 
@@ -68,10 +76,10 @@ export function WeeklyProgress({ habits }: WeeklyProgressProps) {
     <div className="h-[300px] w-full">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data}>
-          <XAxis dataKey="name" />
+          <XAxis dataKey="date" />
           <YAxis />
           <Tooltip formatter={(value: number) => `${value}%`} />
-          <Bar dataKey="value" fill="hsl(var(--chart-1))" />
+          <Bar dataKey="completed" fill="hsl(var(--chart-1))" />
         </BarChart>
       </ResponsiveContainer>
     </div>
