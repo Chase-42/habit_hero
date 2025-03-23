@@ -1,20 +1,12 @@
 "use client";
 
-import Link from "next/link";
-
-import { Button } from "~/components/ui/button";
-import { cn } from "~/lib/utils";
+import { useState } from "react";
 import { ScrollArea } from "~/components/ui/scroll-area";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "~/components/ui/card";
+import { HabitCard } from "~/components/habit-card";
+import { HabitDetails } from "~/components/habit-details";
 import type { Habit, HabitLog } from "~/types";
 
-export interface HabitListProps {
+interface HabitListProps {
   habits: Habit[];
   habitLogs: HabitLog[];
   onComplete: (habit: Habit) => void;
@@ -22,11 +14,28 @@ export interface HabitListProps {
 }
 
 export function HabitList({
-  habits,
+  habits: initialHabits,
   habitLogs,
   onComplete,
   showAll = false,
 }: HabitListProps) {
+  const [expandedHabitId, setExpandedHabitId] = useState<string | null>(null);
+
+  const handleDelete = async (habit: Habit) => {
+    try {
+      const response = await fetch(`/api/habits/${habit.id}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("Failed to delete habit");
+    } catch (err) {
+      console.error("Error deleting habit:", err);
+    }
+  };
+
+  const toggleExpand = (id: string) => {
+    setExpandedHabitId((current) => (current === id ? null : id));
+  };
+
   const isCompletedToday = (habit: Habit) => {
     const today = new Date().toISOString().split("T")[0];
     return habitLogs.some(
@@ -36,110 +45,24 @@ export function HabitList({
     );
   };
 
-  const getFrequencyText = (habit: Habit) => {
-    if (habit.frequencyType === "daily") return "Daily";
-
-    if (habit.frequencyType === "weekly") {
-      const days = habit.frequencyValue.days
-        ?.map((day) =>
-          new Date(0, 0, day).toLocaleDateString("en-US", { weekday: "short" })
-        )
-        .join(", ");
-      return `Weekly (${days})`;
-    }
-
-    if (habit.frequencyType === "monthly") {
-      return "Monthly (1st)";
-    }
-
-    return "";
-  };
-
   return (
     <ScrollArea className={showAll ? "h-[500px]" : "h-auto"}>
-      <div className="space-y-2">
-        {habits.map((habit) => {
-          const completed = isCompletedToday(habit);
-          return (
-            <Card
-              key={habit.id}
-              className={cn(
-                "relative border shadow-sm",
-                "transition-all duration-300",
-                "hover:border-primary/20 hover:shadow-md",
-                completed && "bg-muted"
-              )}
-            >
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-3">
-                  <div
-                    className={cn(
-                      "h-3 w-3 rounded-full",
-                      habit.color === "red" && "bg-red-500",
-                      habit.color === "green" && "bg-green-500",
-                      habit.color === "blue" && "bg-blue-500",
-                      habit.color === "yellow" && "bg-yellow-500",
-                      habit.color === "purple" && "bg-purple-500",
-                      habit.color === "pink" && "bg-pink-500",
-                      habit.color === "orange" && "bg-orange-500"
-                    )}
-                  />
-                  <Link
-                    href={`/habits/${habit.id}`}
-                    className="hover:text-primary hover:underline"
-                  >
-                    {habit.name}
-                  </Link>
-                </CardTitle>
-                <CardDescription>{getFrequencyText(habit)}</CardDescription>
-              </CardHeader>
-
-              <CardContent className="flex items-center justify-between pb-4">
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="font-medium">{habit.streak}</span>
-                  <span className="text-muted-foreground">day streak</span>
-                </div>
-
-                <Button
-                  variant={completed ? "outline" : "default"}
-                  size="sm"
-                  onClick={() => {
-                    console.log("Complete button clicked for habit:", habit);
-                    void onComplete(habit);
-                  }}
-                  className={cn(
-                    "min-w-[100px]",
-                    "transition-all duration-300",
-                    completed && [
-                      "bg-green-500/10 hover:bg-green-500/20",
-                      "border-green-500/20 hover:border-green-500/30",
-                      "text-green-700 dark:text-green-500",
-                    ]
-                  )}
-                >
-                  <div className="flex items-center justify-center gap-2">
-                    {completed && (
-                      <svg
-                        className="h-4 w-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                    )}
-                    <span>{completed ? "Completed" : "Complete"}</span>
-                  </div>
-                </Button>
-              </CardContent>
-            </Card>
-          );
-        })}
+      <div className="space-y-3 p-1">
+        {initialHabits.map((habit) => (
+          <div key={habit.id}>
+            <HabitCard
+              habit={{
+                ...habit,
+                lastCompleted: isCompletedToday(habit) ? new Date() : null,
+              }}
+              onToggleComplete={() => onComplete(habit)}
+              onDelete={() => handleDelete(habit)}
+              onExpand={() => toggleExpand(habit.id)}
+              isExpanded={expandedHabitId === habit.id}
+            />
+            {expandedHabitId === habit.id && <HabitDetails habit={habit} />}
+          </div>
+        ))}
       </div>
     </ScrollArea>
   );
