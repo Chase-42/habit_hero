@@ -5,8 +5,7 @@ import {
   timestamp,
   boolean,
   json,
-  index,
-  uniqueIndex
+  index
 } from "drizzle-orm/singlestore-core";
 import type { FrequencyValue, HabitColor, HabitCategory, FrequencyType, HabitDetails } from "~/types";
 

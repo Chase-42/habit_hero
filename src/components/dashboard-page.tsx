@@ -19,7 +19,6 @@ import { HabitList } from "~/components/habit-list";
 import { StatsCards } from "~/components/stats-cards";
 import { WeeklyProgress } from "~/components/weekly-progress";
 import { HabitCategoryChart } from "~/components/habit-category-chart";
-import { mockHabits, mockHabitLogs } from "~/lib/mock-data";
 import { ThemeToggle } from "~/components/theme-toggle";
 import type { Habit, HabitLog } from "~/types";
 

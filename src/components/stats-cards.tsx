@@ -1,13 +1,7 @@
 "use client";
 
 import { Activity, Calendar, Target, Trophy } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "~/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { useEffect, useState } from "react";
 import type { Habit, HabitLog } from "~/types";
 

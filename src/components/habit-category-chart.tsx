@@ -9,14 +9,10 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "~/components/ui/chart";
-import type { Habit } from "~/types";
+import type { Habit, HabitCategory } from "~/types";
 
-type Category =
-  | "Health"
-  | "Mindfulness"
-  | "Learning"
-  | "Productivity"
-  | "Other";
+// Update the Category type to match HabitCategory
+type Category = HabitCategory;
 
 interface CategoryData {
   name: Category;
@@ -31,11 +27,11 @@ export function HabitCategoryChart({ habits }: HabitCategoryChartProps) {
   // Count habits by category
   const getCategoryData = (): CategoryData[] => {
     const categories: Category[] = [
-      "Health",
-      "Mindfulness",
-      "Learning",
-      "Productivity",
-      "Other",
+      "fitness",
+      "nutrition",
+      "mindfulness",
+      "productivity",
+      "other",
     ];
     const categoryCounts = categories.map((category) => {
       const count = habits.filter(
@@ -55,11 +51,11 @@ export function HabitCategoryChart({ habits }: HabitCategoryChartProps) {
 
   // Define colors for each category
   const categoryColors: Record<Category, string> = {
-    Health: "#10b981",
-    Mindfulness: "#8b5cf6",
-    Learning: "#3b82f6",
-    Productivity: "#f59e0b",
-    Other: "#6b7280",
+    fitness: "#10b981",
+    nutrition: "#8b5cf6",
+    mindfulness: "#3b82f6",
+    productivity: "#f59e0b",
+    other: "#6b7280",
   };
 
   return (
