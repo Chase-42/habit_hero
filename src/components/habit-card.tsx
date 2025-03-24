@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
   MoreHorizontal,
   Trash2,
+  Star,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
@@ -30,6 +31,68 @@ interface HabitCardProps {
   isExpanded: boolean;
 }
 
+const CompletionButton = ({
+  isCompleted,
+  onClick,
+}: {
+  isCompleted: boolean;
+  onClick: () => void;
+}) => {
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  const handleClick = () => {
+    if (!isCompleted) {
+      setIsAnimating(true);
+      setTimeout(() => setIsAnimating(false), 600);
+    }
+    onClick();
+  };
+
+  return (
+    <motion.button
+      className={cn(
+        "relative flex h-10 w-10 items-center justify-center rounded-full transition-colors",
+        isCompleted
+          ? "bg-green-500 text-white"
+          : "bg-muted text-muted-foreground hover:bg-muted/80"
+      )}
+      onClick={handleClick}
+      whileTap={{ scale: 0.9 }}
+    >
+      <AnimatePresence mode="wait">
+        {isCompleted ? (
+          <motion.div
+            key="check"
+            initial={{ scale: 0, rotate: -90 }}
+            animate={{ scale: 1, rotate: 0 }}
+            exit={{ scale: 0, rotate: 90 }}
+            transition={{ type: "spring", duration: 0.5 }}
+          >
+            <CheckCircle2 className="h-5 w-5" />
+          </motion.div>
+        ) : (
+          <motion.div
+            key="circle"
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            exit={{ scale: 0 }}
+            className="h-5 w-5 rounded-full border-2 border-current"
+          />
+        )}
+      </AnimatePresence>
+
+      {isAnimating && (
+        <motion.div
+          className="absolute inset-0 rounded-full bg-green-500"
+          initial={{ scale: 0.8, opacity: 0.5 }}
+          animate={{ scale: 1.4, opacity: 0 }}
+          transition={{ duration: 0.4 }}
+        />
+      )}
+    </motion.button>
+  );
+};
+
 export function HabitCard({
   habit,
   onToggleComplete,
@@ -37,17 +100,7 @@ export function HabitCard({
   onExpand,
   isExpanded,
 }: HabitCardProps) {
-  const [isCheckAnimating, setIsCheckAnimating] = useState(false);
-
   const isCompleted = habit.lastCompleted !== null;
-
-  const handleComplete = () => {
-    if (!isCompleted) {
-      setIsCheckAnimating(true);
-      setTimeout(() => setIsCheckAnimating(false), 1000);
-    }
-    onToggleComplete();
-  };
 
   const getFrequencyText = () => {
     switch (habit.frequencyType) {
@@ -85,7 +138,7 @@ export function HabitCard({
   return (
     <Card
       className={cn(
-        "group relative overflow-hidden transition-all duration-300",
+        "group relative overflow-visible transition-all duration-300",
         bgColors[habit.category]
       )}
     >
@@ -132,28 +185,10 @@ export function HabitCard({
           </div>
 
           <div className="flex items-center gap-2">
-            <motion.button
-              className={cn(
-                "flex h-10 w-10 items-center justify-center rounded-full transition-colors",
-                isCompleted
-                  ? cn(
-                      "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
-                    )
-                  : "bg-white text-muted-foreground hover:text-foreground dark:bg-gray-800"
-              )}
-              onClick={handleComplete}
-              whileTap={{ scale: 0.9 }}
-            >
-              <CheckCircle2 className="h-5 w-5" />
-              {isCheckAnimating && (
-                <motion.div
-                  className="absolute inset-0 rounded-full bg-green-500/20"
-                  initial={{ scale: 0.5, opacity: 0.8 }}
-                  animate={{ scale: 1.5, opacity: 0 }}
-                  transition={{ duration: 0.8 }}
-                />
-              )}
-            </motion.button>
+            <CompletionButton
+              isCompleted={isCompleted}
+              onClick={onToggleComplete}
+            />
 
             <div className="flex">
               <Button

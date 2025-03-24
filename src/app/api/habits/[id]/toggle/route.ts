@@ -1,45 +1,40 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import { db } from "~/server/db";
 import { habits, habitLogs } from "~/server/db/schema";
 import { and, between, eq } from "drizzle-orm";
-
-const toggleInput = z.object({
-  completed: z.boolean(),
-  userId: z.string(),
-});
-
-type RouteContext = {
-  params: {
-    id: string;
-  };
-};
+import { toggleHabitSchema } from "~/schemas";
+import type { RouteContext, RouteParams } from "~/types/route";
 
 export async function PUT(
   request: Request,
-  context: RouteContext
-): Promise<NextResponse> {
+  context: RouteContext<Promise<RouteParams>>
+): Promise<NextResponse<{ success: true } | { error: string }>> {
   try {
-    const input = toggleInput.parse(await request.json());
-    const habitId = context.params.id;
+    const { id } = await context.params;
+    const input = toggleHabitSchema.parse(await request.json());
 
-    // First check if the habit exists and belongs to the user
-    const [habit] = await db
-      .select()
-      .from(habits)
-      .where(and(eq(habits.id, habitId), eq(habits.userId, input.userId)));
+    // Get the habit
+    const [habit] = await db.select().from(habits).where(eq(habits.id, id));
 
     if (!habit) {
+      return NextResponse.json({ error: "Habit not found" }, { status: 404 });
+    }
+
+    // Check if the habit belongs to the user
+    if (habit.userId !== input.userId) {
       return NextResponse.json(
-        { error: "Habit not found or unauthorized" },
-        { status: 404 }
+        { error: "Unauthorized to toggle this habit" },
+        { status: 403 }
       );
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const tomorrow = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() + 1
+    );
 
     // Check if there's already a log for today
     const [existingLog] = await db
@@ -47,60 +42,58 @@ export async function PUT(
       .from(habitLogs)
       .where(
         and(
-          eq(habitLogs.habitId, habitId),
+          eq(habitLogs.habitId, id),
           between(habitLogs.completedAt, today, tomorrow)
         )
       );
 
-    if (input.completed && !existingLog) {
-      // Create a new log
-      await db.insert(habitLogs).values({
-        id: crypto.randomUUID(),
-        habitId,
-        userId: input.userId,
-        completedAt: new Date(),
-        value: null,
-        notes: null,
-        details: null,
-        difficulty: null,
-        feeling: null,
-        hasPhoto: false,
-        photoUrl: null,
-      });
+    if (input.completed) {
+      // If marking as completed and no log exists, create one
+      if (!existingLog) {
+        await db.insert(habitLogs).values({
+          id: crypto.randomUUID(),
+          habitId: id,
+          userId: input.userId,
+          completedAt: now,
+          value: null,
+          notes: null,
+          details: null,
+          difficulty: null,
+          feeling: null,
+          hasPhoto: false,
+          photoUrl: null,
+        });
 
-      // Update streak
-      const streak = habit.streak + 1;
-      const longestStreak = Math.max(habit.longestStreak, streak);
+        // Update habit's streak and last completed
+        await db
+          .update(habits)
+          .set({
+            lastCompleted: now,
+            streak: habit.streak + 1,
+            longestStreak: Math.max(habit.longestStreak, habit.streak + 1),
+            updatedAt: now,
+          })
+          .where(eq(habits.id, id));
+      }
+    } else {
+      // If marking as uncompleted and a log exists, delete it
+      if (existingLog) {
+        await db.delete(habitLogs).where(eq(habitLogs.id, existingLog.id));
 
-      await db
-        .update(habits)
-        .set({
-          streak,
-          longestStreak,
-          lastCompleted: new Date(),
-          updatedAt: new Date(),
-        })
-        .where(eq(habits.id, habitId));
-    } else if (!input.completed && existingLog) {
-      // Remove the log
-      await db.delete(habitLogs).where(eq(habitLogs.id, existingLog.id));
-
-      // Update streak
-      const streak = Math.max(0, habit.streak - 1);
-      await db
-        .update(habits)
-        .set({
-          streak,
-          updatedAt: new Date(),
-        })
-        .where(eq(habits.id, habitId));
+        // Update habit's streak and last completed
+        await db
+          .update(habits)
+          .set({
+            lastCompleted: null,
+            streak: Math.max(0, habit.streak - 1),
+            updatedAt: now,
+          })
+          .where(eq(habits.id, id));
+      }
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors }, { status: 400 });
-    }
     console.error("Error toggling habit:", error);
     return NextResponse.json(
       { error: "Failed to toggle habit" },

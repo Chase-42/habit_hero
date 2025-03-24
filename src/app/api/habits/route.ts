@@ -1,51 +1,8 @@
 import { NextResponse } from "next/server";
 import { createHabit, getHabits } from "~/server/queries";
-import type { Habit, HabitColor, FrequencyType, HabitCategory } from "~/types";
+import type { Habit } from "~/types";
+import { habitInputSchema } from "~/schemas";
 import { z } from "zod";
-
-const habitInput = z.object({
-  name: z.string(),
-  userId: z.string(),
-  color: z.enum([
-    "red",
-    "green",
-    "blue",
-    "yellow",
-    "purple",
-    "pink",
-    "orange",
-  ] as const satisfies readonly HabitColor[]),
-  frequencyType: z.enum([
-    "daily",
-    "weekly",
-    "monthly",
-  ] as const satisfies readonly FrequencyType[]),
-  frequencyValue: z.object({
-    days: z.array(z.number()).optional(),
-    times: z.number().optional(),
-  }),
-  category: z.enum([
-    "fitness",
-    "nutrition",
-    "mindfulness",
-    "productivity",
-    "other",
-  ] as const satisfies readonly HabitCategory[]),
-  isActive: z.literal(true),
-  isArchived: z.literal(false),
-  // Optional fields
-  description: z.string().nullable(),
-  subCategory: z.string().nullable(),
-  goal: z.number().nullable(),
-  metricType: z.string().nullable(),
-  units: z.string().nullable(),
-  notes: z.string().nullable(),
-  reminder: z.coerce.date().nullable(),
-  reminderEnabled: z.boolean().nullable(),
-  lastCompleted: z.coerce.date().nullable(),
-}) satisfies z.ZodType<
-  Omit<Habit, "id" | "createdAt" | "updatedAt" | "streak" | "longestStreak">
->;
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -69,7 +26,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const input = habitInput.parse(await request.json());
+    const input = habitInputSchema.parse(await request.json());
     const habit = await createHabit(input);
     return NextResponse.json(habit);
   } catch (error) {

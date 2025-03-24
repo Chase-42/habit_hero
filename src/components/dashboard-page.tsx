@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Calendar, Plus, Settings, ChevronRight } from "lucide-react";
 import Link from "next/link";
+import { toast } from "sonner";
 
 import { Button } from "~/components/ui/button";
 import {
@@ -26,6 +27,7 @@ import {
   fetchHabits,
   toggleHabit,
   fetchTodaysLogs,
+  fetchHabitLogs,
 } from "~/lib/api-client";
 
 type NewHabit = Omit<
@@ -69,9 +71,17 @@ export function DashboardPage() {
         const habits = await fetchHabits(userId);
         setHabits(habits);
 
-        // Load today's logs for all habits
+        // Load logs for the past 84 days for all habits
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - 84);
+
+        // Fetch logs for each habit
         const allLogs = await Promise.all(
-          habits.map((habit) => fetchTodaysLogs(habit.id))
+          habits.map(async (habit) => {
+            const logs = await fetchHabitLogs(habit.id, startDate, endDate);
+            return logs;
+          })
         );
         setHabitLogs(allLogs.flat());
       } catch (err) {
@@ -85,79 +95,123 @@ export function DashboardPage() {
     void loadHabits();
   }, [userId]);
 
-  const handleCompleteHabit = async (habit: Habit) => {
+  const handleDeleteHabit = async (habit: Habit) => {
     try {
-      // Check if the habit is already completed today
-      const today = new Date().toISOString().split("T")[0];
-      const isCompleted = habitLogs.some(
-        (log) =>
-          log.habitId === habit.id &&
-          new Date(log.completedAt).toISOString().split("T")[0] === today
+      const response = await fetch(`/api/habits/${habit.id}?userId=${userId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete habit");
+      }
+
+      // Update local state
+      setHabits((prevHabits) => prevHabits.filter((h) => h.id !== habit.id));
+      setHabitLogs((prevLogs) =>
+        prevLogs.filter((log) => log.habitId !== habit.id)
       );
+    } catch (error) {
+      console.error("Error deleting habit:", error);
+      throw error; // Re-throw to be handled by HabitList
+    }
+  };
 
-      // Optimistically update the UI
-      const updatedStreak = isCompleted
-        ? Math.max(0, habit.streak - 1)
-        : habit.streak + 1;
-      const updatedLongestStreak = isCompleted
-        ? habit.longestStreak
-        : Math.max(habit.longestStreak, updatedStreak);
+  const handleCompleteHabit = async (habit: Habit) => {
+    const isCompleted = habit.lastCompleted !== null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-      // Update habits immediately
-      setHabits((currentHabits) =>
-        currentHabits.map((h) =>
+    // Optimistically update UI
+    setHabits((prevHabits) =>
+      prevHabits.map((h) =>
+        h.id === habit.id
+          ? {
+              ...h,
+              streak: isCompleted ? h.streak - 1 : h.streak + 1,
+              lastCompleted: isCompleted ? null : today,
+            }
+          : h
+      )
+    );
+
+    // Update logs state
+    setHabitLogs((prevLogs) => {
+      if (isCompleted) {
+        // Remove today's log
+        return prevLogs.filter(
+          (log) =>
+            log.habitId !== habit.id ||
+            new Date(log.completedAt).setHours(0, 0, 0, 0) !== today.getTime()
+        );
+      } else {
+        // Add today's log
+        return [
+          ...prevLogs,
+          {
+            id: crypto.randomUUID(),
+            habitId: habit.id,
+            userId: habit.userId,
+            completedAt: today,
+            value: null,
+            notes: null,
+            details: null,
+            difficulty: null,
+            feeling: null,
+            hasPhoto: false,
+            photoUrl: null,
+          },
+        ];
+      }
+    });
+
+    try {
+      // Make API call
+      await toggleHabit(habit, isCompleted);
+    } catch (error) {
+      // Revert optimistic updates on error
+      setHabits((prevHabits) =>
+        prevHabits.map((h) =>
           h.id === habit.id
             ? {
                 ...h,
-                streak: updatedStreak,
-                longestStreak: updatedLongestStreak,
-                lastCompleted: isCompleted ? null : new Date(),
+                streak: isCompleted ? h.streak + 1 : h.streak - 1,
+                lastCompleted: isCompleted ? today : null,
               }
             : h
         )
       );
 
-      // Update logs immediately
-      if (isCompleted) {
-        setHabitLogs((currentLogs) =>
-          currentLogs.filter(
+      setHabitLogs((prevLogs) => {
+        if (isCompleted) {
+          // Restore today's log
+          return [
+            ...prevLogs,
+            {
+              id: crypto.randomUUID(),
+              habitId: habit.id,
+              userId: habit.userId,
+              completedAt: today,
+              value: null,
+              notes: null,
+              details: null,
+              difficulty: null,
+              feeling: null,
+              hasPhoto: false,
+              photoUrl: null,
+            },
+          ];
+        } else {
+          // Remove today's log
+          return prevLogs.filter(
             (log) =>
-              !(
-                log.habitId === habit.id &&
-                new Date(log.completedAt).toISOString().split("T")[0] === today
-              )
-          )
-        );
-      } else {
-        const newLog: HabitLog = {
-          id: crypto.randomUUID(),
-          habitId: habit.id,
-          userId: habit.userId,
-          completedAt: new Date(),
-          value: null,
-          notes: null,
-          details: null,
-          difficulty: null,
-          feeling: null,
-          hasPhoto: false,
-          photoUrl: null,
-        };
-        setHabitLogs((currentLogs) => [...currentLogs, newLog]);
-      }
+              log.habitId !== habit.id ||
+              new Date(log.completedAt).setHours(0, 0, 0, 0) !== today.getTime()
+          );
+        }
+      });
 
-      // Make the API call
-      await toggleHabit(habit, isCompleted);
-    } catch (err) {
-      console.error("Error toggling habit:", err);
-      setError(err instanceof Error ? err.message : "Failed to toggle habit");
-
-      // If the API call fails, reload the data to ensure consistency
-      const updatedHabits = await fetchHabits(userId);
-      setHabits(updatedHabits);
-      const updatedLogs = await Promise.all(
-        updatedHabits.map((habit) => fetchTodaysLogs(habit.id))
-      );
-      setHabitLogs(updatedLogs.flat());
+      console.error("Error toggling habit:", error);
+      toast.error("Failed to update habit. Please try again.");
     }
   };
 
@@ -242,9 +296,10 @@ export function DashboardPage() {
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
                     <Card className="lg:col-span-4">
                       <CardHeader>
-                        <CardTitle>Weekly Progress</CardTitle>
+                        <CardTitle>Habit Momentum</CardTitle>
                         <CardDescription>
-                          Your habit completion for the past week
+                          Your habits ranked by current streak and completion
+                          rate
                         </CardDescription>
                       </CardHeader>
                       <CardContent>
@@ -276,6 +331,8 @@ export function DashboardPage() {
                         habits={getTodayHabits()}
                         habitLogs={habitLogs}
                         onComplete={handleCompleteHabit}
+                        onDelete={handleDeleteHabit}
+                        userId={userId}
                       />
                     </CardContent>
                   </Card>
@@ -291,7 +348,9 @@ export function DashboardPage() {
                         habits={habits}
                         habitLogs={habitLogs}
                         onComplete={handleCompleteHabit}
+                        onDelete={handleDeleteHabit}
                         showAll
+                        userId={userId}
                       />
                     </CardContent>
                   </Card>

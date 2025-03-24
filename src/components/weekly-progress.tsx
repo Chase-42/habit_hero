@@ -11,14 +11,15 @@ import {
   type TooltipProps,
 } from "recharts";
 import type { Habit, HabitLog } from "~/types";
-import { format } from "date-fns";
+import { format, subDays } from "date-fns";
 import { Card } from "~/components/ui/card";
 
-interface DailyData {
-  date: string;
+interface HabitMomentumData {
+  name: string;
+  streak: number;
+  completionRate: number;
   total: number;
   completed: number;
-  percentage: number;
 }
 
 export interface WeeklyProgressProps {
@@ -27,58 +28,57 @@ export interface WeeklyProgressProps {
 }
 
 export function WeeklyProgress({ habits, habitLogs }: WeeklyProgressProps) {
-  // Get data for the past 7 days
-  const getDailyData = (): DailyData[] => {
-    const data: DailyData[] = [];
+  // Get momentum data for each habit
+  const getMomentumData = (): HabitMomentumData[] => {
     const today = new Date();
+    const weekAgo = subDays(today, 7);
 
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split("T")[0];
-      const dayOfWeek = date.getDay();
-
-      // Count active habits for this day
-      const activeHabits = habits.filter((habit) => {
-        if (!habit.isActive || habit.isArchived) return false;
-
-        if (habit.frequencyType === "daily") return true;
-
-        if (habit.frequencyType === "weekly") {
-          return habit.frequencyValue.days?.includes(dayOfWeek) ?? false;
+    return habits
+      .filter((habit) => habit.isActive && !habit.isArchived)
+      .map((habit) => {
+        // Calculate total possible completions in the past week
+        let totalPossible = 0;
+        if (habit.frequencyType === "daily") {
+          totalPossible = 7;
+        } else if (habit.frequencyType === "weekly") {
+          totalPossible = 1;
+        } else if (habit.frequencyType === "monthly") {
+          // Check if the 1st of the month was in the past week
+          const firstOfMonth = new Date(
+            today.getFullYear(),
+            today.getMonth(),
+            1
+          );
+          if (firstOfMonth >= weekAgo && firstOfMonth <= today) {
+            totalPossible = 1;
+          }
         }
 
-        if (habit.frequencyType === "monthly") {
-          return date.getDate() === 1;
-        }
-
-        return false;
-      }).length;
-
-      // Count completed habits for this day
-      const completedHabits = habits.filter((habit) =>
-        habitLogs.some((log) => {
+        // Count actual completions in the past week
+        const completions = habitLogs.filter((log) => {
           const completedAt = new Date(log.completedAt);
           return (
             log.habitId === habit.id &&
-            completedAt.toISOString().split("T")[0] === dateStr
+            completedAt >= weekAgo &&
+            completedAt <= today
           );
-        })
-      ).length;
+        }).length;
 
-      data.push({
-        date: format(date, "EEE"),
-        total: activeHabits,
-        completed: completedHabits,
-        percentage:
-          activeHabits > 0 ? (completedHabits / activeHabits) * 100 : 0,
-      });
-    }
-
-    return data;
+        return {
+          name: habit.name,
+          streak: habit.streak,
+          completionRate:
+            totalPossible > 0 ? (completions / totalPossible) * 100 : 0,
+          total: totalPossible,
+          completed: completions,
+        };
+      })
+      .sort(
+        (a, b) => b.streak - a.streak || b.completionRate - a.completionRate
+      );
   };
 
-  const data = getDailyData();
+  const data = getMomentumData();
 
   const CustomTooltip = ({
     active,
@@ -86,15 +86,18 @@ export function WeeklyProgress({ habits, habitLogs }: WeeklyProgressProps) {
     label,
   }: TooltipProps<number, string>) => {
     if (active && payload && payload.length > 0) {
-      const data = payload[0].payload as DailyData;
+      const data = payload[0].payload as HabitMomentumData;
       return (
         <Card className="p-3">
-          <p className="text-sm font-medium">{label}</p>
+          <p className="text-sm font-medium">{data.name}</p>
           <p className="text-sm text-muted-foreground">
-            {data.percentage.toFixed(0)}% Completed
+            {data.streak} day streak
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {data.completionRate.toFixed(0)}% this week
           </p>
           <p className="text-xs text-muted-foreground">
-            {data.completed} of {data.total} habits
+            {data.completed} of {data.total} completions
           </p>
         </Card>
       );
@@ -107,30 +110,38 @@ export function WeeklyProgress({ habits, habitLogs }: WeeklyProgressProps) {
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={data}
-          margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+          layout="vertical"
+          margin={{ top: 10, right: 10, left: 120, bottom: 0 }}
         >
-          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+          <CartesianGrid
+            strokeDasharray="3 3"
+            className="stroke-muted"
+            horizontal={false}
+          />
           <XAxis
-            dataKey="date"
+            type="number"
+            domain={[0, 100]}
+            unit="%"
             axisLine={false}
             tickLine={false}
             className="text-xs font-medium"
           />
           <YAxis
+            type="category"
+            dataKey="name"
             axisLine={false}
             tickLine={false}
             className="text-xs font-medium"
-            domain={[0, 100]}
-            unit="%"
+            width={110}
           />
           <Tooltip
             content={<CustomTooltip />}
             cursor={{ fill: "transparent" }}
           />
           <Bar
-            dataKey="percentage"
+            dataKey="completionRate"
             fill="hsl(var(--primary))"
-            radius={[4, 4, 0, 0]}
+            radius={[0, 4, 4, 0]}
             className="fill-primary"
           />
         </BarChart>

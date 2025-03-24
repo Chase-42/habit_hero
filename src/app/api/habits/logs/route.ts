@@ -3,27 +3,14 @@ import { z } from "zod";
 import { db } from "~/server/db";
 import { habits, habitLogs } from "~/server/db/schema";
 import { eq, and, between } from "drizzle-orm";
-import type { HabitDetails } from "~/types";
-
-const habitLogInput = z.object({
-  habitId: z.string(),
-  userId: z.string(),
-  completedAt: z.coerce.date(),
-  value: z.number().nullable(),
-  notes: z.string().nullable(),
-  details: z.record(z.any()).nullable() as z.ZodType<HabitDetails | null>,
-  difficulty: z.number().min(1).max(5).nullable(),
-  feeling: z.string().nullable(),
-  hasPhoto: z.boolean(),
-  photoUrl: z.string().nullable(),
-});
+import { habitLogInputSchema } from "~/schemas";
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const habitId = searchParams.get("habitId");
-    const startDate = searchParams.get("startDate");
-    const endDate = searchParams.get("endDate");
+    const startDateStr = searchParams.get("startDate");
+    const endDateStr = searchParams.get("endDate");
 
     if (!habitId) {
       return NextResponse.json(
@@ -32,7 +19,16 @@ export async function GET(request: Request) {
       );
     }
 
-    if (startDate && endDate) {
+    if (startDateStr && endDateStr) {
+      const startDate = new Date(startDateStr);
+      const endDate = new Date(endDateStr);
+
+      // Ensure start date is at beginning of day
+      startDate.setHours(0, 0, 0, 0);
+
+      // Ensure end date is at end of day
+      endDate.setHours(23, 59, 59, 999);
+
       return NextResponse.json(
         await db
           .select()
@@ -40,11 +36,7 @@ export async function GET(request: Request) {
           .where(
             and(
               eq(habitLogs.habitId, habitId),
-              between(
-                habitLogs.completedAt,
-                new Date(startDate),
-                new Date(endDate)
-              )
+              between(habitLogs.completedAt, startDate, endDate)
             )
           )
           .orderBy(habitLogs.completedAt)
@@ -73,7 +65,7 @@ export async function POST(request: Request) {
     const body = (await request.json()) as unknown;
     console.log("Request body:", body);
 
-    const input = habitLogInput.parse(body);
+    const input = habitLogInputSchema.parse(body);
     console.log("Validated input:", input);
 
     // Check if habit exists
@@ -101,11 +93,12 @@ export async function POST(request: Request) {
     }
 
     // Create the log
+    const completedAt = new Date(input.completedAt);
     const newLog = {
       id: crypto.randomUUID(),
       habitId: input.habitId,
       userId: input.userId,
-      completedAt: input.completedAt,
+      completedAt,
       value: input.value,
       notes: input.notes,
       details: input.details,
@@ -120,10 +113,24 @@ export async function POST(request: Request) {
     console.log("Log inserted successfully");
 
     // Update habit streak
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
+    const today = new Date(
+      completedAt.getFullYear(),
+      completedAt.getMonth(),
+      completedAt.getDate(),
+      0,
+      0,
+      0,
+      0
+    );
+    const yesterday = new Date(
+      completedAt.getFullYear(),
+      completedAt.getMonth(),
+      completedAt.getDate() - 1,
+      0,
+      0,
+      0,
+      0
+    );
 
     const [yesterdayLog] = await db
       .select()
@@ -154,7 +161,8 @@ export async function POST(request: Request) {
       .set({
         streak,
         longestStreak,
-        updatedAt: new Date(),
+        lastCompleted: completedAt,
+        updatedAt: completedAt,
       })
       .where(eq(habits.id, input.habitId));
     console.log("Habit streak updated");

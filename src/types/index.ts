@@ -55,7 +55,7 @@ export interface Habit {
   units: string | null;
   notes: string | null;
   reminder: Date | null;
-  reminderEnabled: boolean | null;
+  reminderEnabled: boolean;
   isActive: boolean;
   isArchived: boolean;
   createdAt: Date;
@@ -113,3 +113,7 @@ export interface StreakSummary {
   streak: number;
   wasStreakBroken: boolean;
 }
+
+export * from "./habit";
+export * from "./habit-log";
+export * from "./goal";

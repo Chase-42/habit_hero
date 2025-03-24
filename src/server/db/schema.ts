@@ -42,7 +42,7 @@ export const habits = singlestoreTable(
     units: text("units"), // kg, miles, minutes, etc.
     notes: text("notes"),
     reminder: timestamp("reminder"),
-    reminderEnabled: boolean("reminderEnabled"),
+    reminderEnabled: boolean("reminderEnabled").notNull().default(false),
   },
   (table) => [
     index("userId_idx").on(table.userId),

@@ -30,6 +30,13 @@ import { Checkbox } from "~/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group";
 import { TimePicker } from "~/components/time-picker";
 import type { Habit, HabitColor, HabitCategory, FrequencyType } from "~/types";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
 
 type Category = {
   label: string;
@@ -112,9 +119,10 @@ export function AddHabitModal({
   const [selectedDays, setSelectedDays] = useState<number[]>([]);
   const [timesPerFrequency, setTimesPerFrequency] = useState(1);
   const [color, setColor] = useState<HabitColor>("blue");
-  const [reminder, setReminder] = useState<Date | null>(null);
+  const [reminderTime, setReminderTime] = useState<Date | null>(null);
   const [goal, setGoal] = useState<number | null>(null);
   const [notes, setNotes] = useState<string | null>(null);
+  const [units, setUnits] = useState<string>("times");
 
   const resetForm = () => {
     setName("");
@@ -123,9 +131,10 @@ export function AddHabitModal({
     setSelectedDays([]);
     setTimesPerFrequency(1);
     setColor("blue");
-    setReminder(null);
+    setReminderTime(null);
     setGoal(null);
     setNotes(null);
+    setUnits("times");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -158,10 +167,10 @@ export function AddHabitModal({
       subCategory: null,
       goal,
       metricType: null,
-      units: null,
+      units,
       notes,
-      reminder,
-      reminderEnabled: reminder !== null,
+      reminder: reminderTime,
+      reminderEnabled: reminderTime !== null,
       lastCompleted: null,
     };
 
@@ -321,22 +330,41 @@ export function AddHabitModal({
             <label className="text-sm font-medium">
               Reminder Time (Optional)
             </label>
-            <TimePicker
-              value={reminder?.toISOString()}
-              onChange={(value) => setReminder(value ? new Date(value) : null)}
-            />
+            <TimePicker value={reminderTime} onChange={setReminderTime} />
           </div>
 
           <div>
             <label className="text-sm font-medium">Goal (Optional)</label>
-            <Input
-              type="number"
-              placeholder="e.g., 5 (for 5km daily)"
-              value={goal ?? ""}
-              onChange={(e) =>
-                setGoal(e.target.value ? Number(e.target.value) : null)
-              }
-            />
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <Input
+                  type="number"
+                  placeholder="e.g., 5"
+                  value={goal ?? ""}
+                  onChange={(e) =>
+                    setGoal(e.target.value ? Number(e.target.value) : null)
+                  }
+                />
+                <Select value={units} onValueChange={setUnits}>
+                  <SelectTrigger className="w-[120px]">
+                    <SelectValue placeholder="Units" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="times">times</SelectItem>
+                    <SelectItem value="minutes">minutes</SelectItem>
+                    <SelectItem value="hours">hours</SelectItem>
+                    <SelectItem value="kilometers">km</SelectItem>
+                    <SelectItem value="miles">miles</SelectItem>
+                    <SelectItem value="pages">pages</SelectItem>
+                    <SelectItem value="custom">custom</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Set a target value for your habit. For example: 5km of running,
+                30 minutes of meditation, etc.
+              </p>
+            </div>
           </div>
 
           <div>

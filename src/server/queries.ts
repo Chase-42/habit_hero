@@ -1,7 +1,7 @@
 import { db } from "~/server/db";
 import { habits, habitLogs } from "~/server/db/schema";
 import type { Habit, HabitFilters, HabitLog, HabitCategory } from "~/types";
-import { eq, like, or, and, type SQL, between } from "drizzle-orm";
+import { eq, like, or, and, type SQL, between, desc } from "drizzle-orm";
 
 // Define types from the schema
 type HabitRow = typeof habits.$inferSelect;
@@ -15,8 +15,12 @@ type HabitFilter = {
   searchQuery?: string;
 };
 
-export async function getHabits(userId: string): Promise<HabitRow[]> {
-  return db.select().from(habits).where(eq(habits.userId, userId));
+export async function getHabits(userId: string): Promise<Habit[]> {
+  return db
+    .select()
+    .from(habits)
+    .where(eq(habits.userId, userId))
+    .orderBy(desc(habits.createdAt));
 }
 
 export async function getFilteredHabits(
@@ -80,8 +84,12 @@ export async function updateHabit(
     .where(eq(habits.id, id));
 }
 
-export async function deleteHabit(id: string): Promise<void> {
-  await db.delete(habits).where(eq(habits.id, id));
+export async function deleteHabit(habitId: string): Promise<void> {
+  // First delete all associated logs
+  await db.delete(habitLogs).where(eq(habitLogs.habitId, habitId));
+
+  // Then delete the habit
+  await db.delete(habits).where(eq(habits.id, habitId));
 }
 
 export async function getHabitById(id: string): Promise<Habit | null> {

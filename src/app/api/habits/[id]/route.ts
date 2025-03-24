@@ -1,80 +1,16 @@
 import { NextResponse } from "next/server";
 import { getHabitById, updateHabit, deleteHabit } from "~/server/queries";
-import type { Habit, HabitColor, FrequencyType, HabitCategory } from "~/types";
-import { z } from "zod";
-
-type RouteContext = {
-  params: {
-    id: string;
-  };
-};
-
-const updateHabitInput = z.object({
-  name: z.string().optional(),
-  color: z
-    .enum([
-      "red",
-      "green",
-      "blue",
-      "yellow",
-      "purple",
-      "pink",
-      "orange",
-    ] as const satisfies readonly HabitColor[])
-    .optional(),
-  frequencyType: z
-    .enum([
-      "daily",
-      "weekly",
-      "monthly",
-    ] as const satisfies readonly FrequencyType[])
-    .optional(),
-  frequencyValue: z
-    .object({
-      days: z.array(z.number()).optional(),
-      times: z.number().optional(),
-    })
-    .optional(),
-  category: z
-    .enum([
-      "fitness",
-      "nutrition",
-      "mindfulness",
-      "productivity",
-      "other",
-    ] as const satisfies readonly HabitCategory[])
-    .optional(),
-  isActive: z.boolean().optional(),
-  isArchived: z.boolean().optional(),
-  description: z.string().nullable().optional(),
-  subCategory: z.string().nullable().optional(),
-  goal: z.number().nullable().optional(),
-  metricType: z.string().nullable().optional(),
-  units: z.string().nullable().optional(),
-  notes: z.string().nullable().optional(),
-  reminder: z.coerce.date().nullable().optional(),
-  reminderEnabled: z.boolean().nullable().optional(),
-}) satisfies z.ZodType<
-  Partial<
-    Omit<
-      Habit,
-      | "id"
-      | "createdAt"
-      | "updatedAt"
-      | "streak"
-      | "longestStreak"
-      | "lastCompleted"
-      | "userId"
-    >
-  >
->;
+import type { Habit } from "~/types";
+import type { RouteContext, RouteParams } from "~/types/route";
+import { updateHabitSchema } from "~/schemas";
 
 export async function GET(
   request: Request,
-  context: RouteContext
+  context: RouteContext<Promise<RouteParams>>
 ): Promise<NextResponse<Habit | { error: string }>> {
   try {
-    const habit = await getHabitById(context.params.id);
+    const { id } = await context.params;
+    const habit = await getHabitById(id);
     if (!habit) {
       return NextResponse.json({ error: "Habit not found" }, { status: 404 });
     }
@@ -90,17 +26,20 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  context: RouteContext
-): Promise<
-  NextResponse<{ success: true } | { error: string | z.ZodError["errors"] }>
-> {
+  context: RouteContext<Promise<RouteParams>>
+): Promise<NextResponse<Habit | { error: string }>> {
   try {
-    const updates = updateHabitInput.parse(await request.json());
-    await updateHabit(context.params.id, updates);
-    return NextResponse.json({ success: true });
+    const { id } = await context.params;
+    const input = updateHabitSchema.parse(await request.json());
+    await updateHabit(id, input);
+    const updatedHabit = await getHabitById(id);
+    if (!updatedHabit) {
+      return NextResponse.json({ error: "Habit not found" }, { status: 404 });
+    }
+    return NextResponse.json(updatedHabit);
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors }, { status: 400 });
+    if (error instanceof Error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
     console.error("Error updating habit:", error);
     return NextResponse.json(
@@ -112,10 +51,29 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  context: RouteContext
+  context: RouteContext<Promise<RouteParams>>
 ): Promise<NextResponse<{ success: true } | { error: string }>> {
   try {
-    await deleteHabit(context.params.id);
+    const { id } = await context.params;
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get("userId");
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: "userId is required" },
+        { status: 400 }
+      );
+    }
+
+    const habit = await getHabitById(id);
+    if (!habit || habit.userId !== userId) {
+      return NextResponse.json(
+        { error: "Habit not found or unauthorized" },
+        { status: 404 }
+      );
+    }
+
+    await deleteHabit(id);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error deleting habit:", error);

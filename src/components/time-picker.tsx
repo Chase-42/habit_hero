@@ -10,6 +10,13 @@ import {
 } from "~/components/ui/popover";
 import { cn } from "~/lib/utils";
 import { useState } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
 
 interface TimePickerProps {
   value?: string;
@@ -18,30 +25,57 @@ interface TimePickerProps {
 }
 
 export function TimePicker({ value, onChange, className }: TimePickerProps) {
-  const parseTimeValue = (index: 0 | 1, timeStr?: string): number => {
-    if (!timeStr) return 0;
-    const parts = timeStr.split(":");
-    const value = parts[index];
-    if (!value) return 0;
-    const parsed = Number.parseInt(value, 10);
-    return isNaN(parsed) ? 0 : parsed;
+  const parseTimeValue = (
+    timeStr?: string
+  ): { hours: number; minutes: number; period: "AM" | "PM" } => {
+    if (!timeStr) return { hours: 12, minutes: 0, period: "AM" };
+    const [hoursStr, minutesStr = "0"] = timeStr.split(":");
+    const hours = parseInt(hoursStr ?? "12", 10);
+    const minutes = parseInt(minutesStr, 10);
+    const period = hours >= 12 ? "PM" : "AM";
+    const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+    return {
+      hours: displayHours,
+      minutes: isNaN(minutes) ? 0 : minutes,
+      period,
+    };
   };
 
-  const [hours, setHours] = useState(() => parseTimeValue(0, value));
-  const [minutes, setMinutes] = useState(() => parseTimeValue(1, value));
+  const { hours, minutes, period } = parseTimeValue(value);
+  const [selectedHours, setHours] = useState(hours);
+  const [selectedMinutes, setMinutes] = useState(minutes);
+  const [selectedPeriod, setPeriod] = useState<"AM" | "PM">(period);
 
-  const handleHoursChange = (hours: number) => {
-    setHours(hours);
-    onChange(
-      `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`
-    );
+  const handleTimeChange = (
+    hours: number,
+    minutes: number,
+    period: "AM" | "PM"
+  ) => {
+    let h = hours % 12;
+    if (period === "PM") h += 12;
+    const timeString = `${h.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
+    onChange(timeString);
   };
 
-  const handleMinutesChange = (minutes: number) => {
-    setMinutes(minutes);
-    onChange(
-      `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`
-    );
+  const handleHoursChange = (h: number) => {
+    setHours(h);
+    handleTimeChange(h, selectedMinutes, selectedPeriod);
+  };
+
+  const handleMinutesChange = (m: number) => {
+    setMinutes(m);
+    handleTimeChange(selectedHours, m, selectedPeriod);
+  };
+
+  const handlePeriodChange = (p: "AM" | "PM") => {
+    setPeriod(p);
+    handleTimeChange(selectedHours, selectedMinutes, p);
+  };
+
+  const formatDisplayTime = (value?: string) => {
+    if (!value) return "Set time";
+    const { hours, minutes, period } = parseTimeValue(value);
+    return `${hours}:${minutes.toString().padStart(2, "0")} ${period}`;
   };
 
   return (
@@ -56,24 +90,46 @@ export function TimePicker({ value, onChange, className }: TimePickerProps) {
           )}
         >
           <Clock className="mr-2 h-4 w-4" />
-          {value ?? "Set time"}
+          {formatDisplayTime(value)}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-4">
-        <div className="flex items-center justify-center space-x-2">
-          <TimePickerInput
-            value={hours}
-            onChange={handleHoursChange}
-            max={23}
-            className="w-16"
-          />
-          <span className="text-sm">:</span>
-          <TimePickerInput
-            value={minutes}
-            onChange={handleMinutesChange}
-            max={59}
-            className="w-16"
-          />
+      <PopoverContent className="flex w-auto flex-col space-y-4 p-4">
+        <div className="flex items-end justify-between space-x-2">
+          <div>
+            <div className="text-sm font-medium">Hours</div>
+            <TimePickerInput
+              value={selectedHours}
+              onChange={handleHoursChange}
+              max={12}
+              min={1}
+              className="w-16"
+            />
+          </div>
+          <span className="pb-2 text-sm">:</span>
+          <div>
+            <div className="text-sm font-medium">Minutes</div>
+            <TimePickerInput
+              value={selectedMinutes}
+              onChange={handleMinutesChange}
+              max={59}
+              className="w-16"
+            />
+          </div>
+          <div>
+            <div className="text-sm font-medium">Period</div>
+            <Select
+              value={selectedPeriod}
+              onValueChange={(value: "AM" | "PM") => handlePeriodChange(value)}
+            >
+              <SelectTrigger className="w-[70px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="AM">AM</SelectItem>
+                <SelectItem value="PM">PM</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </PopoverContent>
     </Popover>
