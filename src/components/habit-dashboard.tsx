@@ -78,8 +78,11 @@ export function HabitDashboard({ userId }: HabitDashboardProps) {
         throw new Error("Failed to create habit");
       }
 
+      const newHabit = (await response.json()) as Habit;
+
+      // Update local state instead of reloading
+      setHabits((prevHabits) => [...prevHabits, newHabit]);
       setIsAddModalOpen(false);
-      void loadHabits();
       toast.success("Habit created successfully!");
     } catch (err) {
       console.error("Error creating habit:", err);
@@ -91,7 +94,7 @@ export function HabitDashboard({ userId }: HabitDashboardProps) {
   const handleCompleteHabit = async (habit: Habit) => {
     console.log("handleCompleteHabit called with habit:", habit);
     try {
-      const logData = {
+      const logData: Omit<HabitLog, "id"> = {
         habitId: habit.id,
         userId: habit.userId,
         completedAt: new Date(),
@@ -102,6 +105,8 @@ export function HabitDashboard({ userId }: HabitDashboardProps) {
         feeling: null,
         hasPhoto: false,
         photoUrl: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       };
       console.log("Calling logHabit with data:", logData);
       await logHabit(logData);
@@ -113,6 +118,11 @@ export function HabitDashboard({ userId }: HabitDashboardProps) {
       console.error("Error completing habit:", err);
       toast.error("Failed to complete habit. Please try again.");
     }
+  };
+
+  const handleDeleteHabit = async (habit: Habit) => {
+    // We don't support deletion in this view, so we'll just show a message
+    toast.info("Habit deletion is not supported in this view");
   };
 
   if (error) {
@@ -173,6 +183,8 @@ export function HabitDashboard({ userId }: HabitDashboardProps) {
               habits={habits}
               habitLogs={habitLogs}
               onComplete={handleCompleteHabit}
+              onDelete={handleDeleteHabit}
+              userId={userId}
             />
           )}
         </CardContent>

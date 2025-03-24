@@ -44,20 +44,16 @@ export function DashboardPage() {
   const userId = "user123"; // TODO: Get from auth
 
   const addHabit = async (newHabit: NewHabit) => {
-    setIsLoading(true);
-    setError(null);
-
     try {
       const habit = await createHabit(newHabit);
       console.log("Added new habit:", habit);
       setHabits((currentHabits) => [...currentHabits, habit]);
-      setIsAddHabitOpen(false);
+      toast.success("Habit created successfully!");
     } catch (err) {
       console.error("Error adding habit:", err);
       setError(err instanceof Error ? err.message : "Failed to create habit");
+      toast.error("Failed to create habit. Please try again.");
       throw err; // Re-throw to be handled by the modal
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -145,6 +141,7 @@ export function DashboardPage() {
         );
       } else {
         // Add today's log
+        const now = new Date();
         return [
           ...prevLogs,
           {
@@ -159,6 +156,8 @@ export function DashboardPage() {
             feeling: null,
             hasPhoto: false,
             photoUrl: null,
+            createdAt: now,
+            updatedAt: now,
           },
         ];
       }
@@ -184,22 +183,11 @@ export function DashboardPage() {
       setHabitLogs((prevLogs) => {
         if (isCompleted) {
           // Restore today's log
-          return [
-            ...prevLogs,
-            {
-              id: crypto.randomUUID(),
-              habitId: habit.id,
-              userId: habit.userId,
-              completedAt: today,
-              value: null,
-              notes: null,
-              details: null,
-              difficulty: null,
-              feeling: null,
-              hasPhoto: false,
-              photoUrl: null,
-            },
-          ];
+          return prevLogs.filter(
+            (log) =>
+              log.habitId !== habit.id ||
+              new Date(log.completedAt).setHours(0, 0, 0, 0) !== today.getTime()
+          );
         } else {
           // Remove today's log
           return prevLogs.filter(
@@ -382,7 +370,6 @@ export function DashboardPage() {
         onOpenChange={setIsAddHabitOpen}
         onAddHabit={addHabit}
         userId={userId}
-        isLoading={isLoading}
       />
     </div>
   );

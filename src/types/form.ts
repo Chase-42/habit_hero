@@ -1,9 +1,19 @@
-import type { Habit, HabitColor, FrequencyType } from "~/types";
+import type { Habit } from "~/types";
+import {
+  type HabitColor,
+  type FrequencyType,
+  type HabitCategory,
+} from "./common/enums";
 
 export type NewHabit = Omit<
   Habit,
   "id" | "createdAt" | "updatedAt" | "streak" | "longestStreak"
 >;
+
+export type Category = {
+  label: string;
+  value: HabitCategory;
+};
 
 export type Frequency = {
   label: string;
