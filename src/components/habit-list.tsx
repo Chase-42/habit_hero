@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { HabitCard } from "~/components/habit-card";
 import { HabitDetails } from "~/components/habit-details";
@@ -15,13 +15,12 @@ import {
   AlertDialogTitle,
 } from "~/components/ui/alert-dialog";
 import type { Habit, HabitLog } from "~/types";
-import { toast } from "sonner";
 
 interface HabitListProps {
   habits: Habit[];
   habitLogs: HabitLog[];
   onComplete: (habit: Habit) => void;
-  onDelete: (habit: Habit) => void;
+  onDelete: (habit: Habit) => Promise<void>;
   showAll?: boolean;
   userId: string;
 }
@@ -32,28 +31,9 @@ export function HabitList({
   onComplete,
   onDelete,
   showAll = false,
-  userId,
 }: HabitListProps) {
   const [expandedHabitId, setExpandedHabitId] = useState<string | null>(null);
   const [habitToDelete, setHabitToDelete] = useState<Habit | null>(null);
-
-  const handleDeleteClick = (habit: Habit) => {
-    setHabitToDelete(habit);
-  };
-
-  const handleDelete = async () => {
-    if (!habitToDelete) return;
-
-    try {
-      await onDelete(habitToDelete);
-      toast.success(`${habitToDelete.name} deleted successfully`);
-    } catch (err) {
-      console.error("Error deleting habit:", err);
-      toast.error("Failed to delete habit. Please try again.");
-    } finally {
-      setHabitToDelete(null);
-    }
-  };
 
   const toggleExpand = (id: string) => {
     setExpandedHabitId((current) => (current === id ? null : id));
@@ -81,7 +61,7 @@ export function HabitList({
                   lastCompleted: isCompletedToday(habit) ? new Date() : null,
                 }}
                 onToggleComplete={() => onComplete(habit)}
-                onDelete={() => handleDeleteClick(habit)}
+                onDelete={() => setHabitToDelete(habit)}
                 onExpand={() => toggleExpand(habit.id)}
                 isExpanded={expandedHabitId === habit.id}
               />
@@ -107,7 +87,12 @@ export function HabitList({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDelete}
+              onClick={() => {
+                if (habitToDelete) {
+                  void onDelete(habitToDelete);
+                  setHabitToDelete(null);
+                }
+              }}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete

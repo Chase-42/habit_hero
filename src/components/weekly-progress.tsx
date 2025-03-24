@@ -11,8 +11,9 @@ import {
   type TooltipProps,
 } from "recharts";
 import type { Habit, HabitLog } from "~/types";
-import { format, subDays } from "date-fns";
+import { subDays } from "date-fns";
 import { Card } from "~/components/ui/card";
+import { FrequencyType } from "~/types/common/enums";
 
 interface HabitMomentumData {
   name: string;
@@ -38,11 +39,11 @@ export function WeeklyProgress({ habits, habitLogs }: WeeklyProgressProps) {
       .map((habit) => {
         // Calculate total possible completions in the past week
         let totalPossible = 0;
-        if (habit.frequencyType === "daily") {
+        if (habit.frequencyType === FrequencyType.Daily) {
           totalPossible = 7;
-        } else if (habit.frequencyType === "weekly") {
+        } else if (habit.frequencyType === FrequencyType.Weekly) {
           totalPossible = 1;
-        } else if (habit.frequencyType === "monthly") {
+        } else if (habit.frequencyType === FrequencyType.Monthly) {
           // Check if the 1st of the month was in the past week
           const firstOfMonth = new Date(
             today.getFullYear(),
@@ -80,12 +81,8 @@ export function WeeklyProgress({ habits, habitLogs }: WeeklyProgressProps) {
 
   const data = getMomentumData();
 
-  const CustomTooltip = ({
-    active,
-    payload,
-    label,
-  }: TooltipProps<number, string>) => {
-    if (active && payload && payload.length > 0) {
+  const CustomTooltip = ({ active, payload }: TooltipProps<number, string>) => {
+    if (active && payload && payload.length > 0 && payload[0]?.payload) {
       const data = payload[0].payload as HabitMomentumData;
       return (
         <Card className="p-3">

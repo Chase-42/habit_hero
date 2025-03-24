@@ -8,7 +8,6 @@ import {
   ChevronUp,
   MoreHorizontal,
   Trash2,
-  Star,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
@@ -22,6 +21,7 @@ import {
 } from "~/components/ui/dropdown-menu";
 import type { Habit } from "~/types";
 import { cn } from "~/lib/utils";
+import { FrequencyType } from "~/types/common/enums";
 
 interface HabitCardProps {
   habit: Habit;
@@ -104,15 +104,15 @@ export function HabitCard({
 
   const getFrequencyText = () => {
     switch (habit.frequencyType) {
-      case "daily":
+      case FrequencyType.Daily:
         return "Daily";
-      case "weekly":
+      case FrequencyType.Weekly:
         if (habit.frequencyValue.days?.length) {
           const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
           return `Weekly: ${habit.frequencyValue.days.map((day) => dayNames[day]).join(", ")}`;
         }
         return "Weekly";
-      case "monthly":
+      case FrequencyType.Monthly:
         return "Monthly";
       default:
         return "";

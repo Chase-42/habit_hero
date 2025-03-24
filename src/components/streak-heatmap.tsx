@@ -8,13 +8,13 @@ import {
   endOfDay,
 } from "date-fns";
 import { cn } from "~/lib/utils";
-import type { Habit, HabitLog } from "~/types";
 import type {
   DayCompletion,
   StreakHeatmapProps,
   HeatmapDayProps,
   HeatmapLegendProps,
 } from "~/types/chart";
+import { FrequencyType } from "~/types/common/enums";
 
 const getIntensityClass = (percentage: number): string => {
   if (percentage === 0) return "bg-muted";
@@ -86,13 +86,13 @@ export function StreakHeatmap({
     const activeHabits = habits.filter((habit) => {
       if (!habit.isActive || habit.isArchived) return false;
 
-      if (habit.frequencyType === "daily") return true;
+      if (habit.frequencyType === FrequencyType.Daily) return true;
 
-      if (habit.frequencyType === "weekly") {
+      if (habit.frequencyType === FrequencyType.Weekly) {
         return habit.frequencyValue.days?.includes(date.getDay()) ?? false;
       }
 
-      if (habit.frequencyType === "monthly") {
+      if (habit.frequencyType === FrequencyType.Monthly) {
         return date.getDate() === 1;
       }
 

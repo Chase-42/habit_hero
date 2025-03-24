@@ -3,8 +3,6 @@
 import { motion } from "framer-motion";
 import { Calendar, Clock, Target } from "lucide-react";
 import { format } from "date-fns";
-
-import { Card } from "~/components/ui/card";
 import { Progress } from "~/components/ui/progress";
 import type { Habit } from "~/types";
 import { cn } from "~/lib/utils";

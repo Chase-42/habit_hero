@@ -10,7 +10,7 @@ import {
   CartesianGrid,
   type TooltipProps,
 } from "recharts";
-import type { Habit, HabitCategory } from "~/types";
+import type { HabitCategory } from "~/types";
 import type { CategoryData, HabitCategoryChartProps } from "~/types/chart";
 import { Card } from "~/components/ui/card";
 

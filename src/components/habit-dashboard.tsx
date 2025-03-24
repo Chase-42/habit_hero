@@ -41,16 +41,21 @@ export function HabitDashboard({ userId }: HabitDashboardProps) {
       const fetchedHabits = await fetchFilteredHabits(filters);
       setHabits(fetchedHabits);
 
-      // Fetch today's logs for all habits
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
+      // Only fetch logs for active habits
+      const activeHabits = fetchedHabits.filter((h) => h.isActive);
+      if (activeHabits.length > 0) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
 
-      const allLogs = await Promise.all(
-        fetchedHabits.map((habit) => fetchHabitLogs(habit.id, today, tomorrow))
-      );
-      setHabitLogs(allLogs.flat());
+        const logs = await Promise.all(
+          activeHabits.map((habit) => fetchHabitLogs(habit.id, today, tomorrow))
+        );
+        setHabitLogs(logs.flat());
+      } else {
+        setHabitLogs([]);
+      }
     } catch (err) {
       console.error("Error loading habits:", err);
       toast.error("Failed to load habits. Please try again.");
@@ -92,7 +97,6 @@ export function HabitDashboard({ userId }: HabitDashboardProps) {
   };
 
   const handleCompleteHabit = async (habit: Habit) => {
-    console.log("handleCompleteHabit called with habit:", habit);
     try {
       const logData: Omit<HabitLog, "id"> = {
         habitId: habit.id,
@@ -108,12 +112,27 @@ export function HabitDashboard({ userId }: HabitDashboardProps) {
         createdAt: new Date(),
         updatedAt: new Date(),
       };
-      console.log("Calling logHabit with data:", logData);
-      await logHabit(logData);
+
+      const newLog = await logHabit(logData);
+
+      // Update local state
+      setHabitLogs((prevLogs) => [...prevLogs, newLog]);
+
+      // Update the habit in the list to reflect the new completion
+      setHabits((prevHabits) =>
+        prevHabits.map((h) =>
+          h.id === habit.id
+            ? {
+                ...h,
+                lastCompleted: newLog.completedAt,
+                streak: h.streak + 1,
+                longestStreak: Math.max(h.longestStreak, h.streak + 1),
+              }
+            : h
+        )
+      );
 
       toast.success(`${habit.name} completed!`);
-      console.log("Reloading habits after completion");
-      void loadHabits();
     } catch (err) {
       console.error("Error completing habit:", err);
       toast.error("Failed to complete habit. Please try again.");
@@ -121,8 +140,25 @@ export function HabitDashboard({ userId }: HabitDashboardProps) {
   };
 
   const handleDeleteHabit = async (habit: Habit) => {
-    // We don't support deletion in this view, so we'll just show a message
-    toast.info("Habit deletion is not supported in this view");
+    try {
+      const response = await fetch(`/api/habits/${habit.id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete habit");
+      }
+
+      // Update local state
+      setHabits((prevHabits) => prevHabits.filter((h) => h.id !== habit.id));
+      setHabitLogs((prevLogs) =>
+        prevLogs.filter((log) => log.habitId !== habit.id)
+      );
+      toast.success(`${habit.name} deleted successfully`);
+    } catch (err) {
+      console.error("Error deleting habit:", err);
+      toast.error("Failed to delete habit. Please try again.");
+    }
   };
 
   if (error) {
