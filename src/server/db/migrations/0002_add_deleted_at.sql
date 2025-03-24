@@ -1,2 +1,0 @@
-ALTER TABLE habit_hero_habits
-ADD COLUMN deletedAt TIMESTAMP NULL DEFAULT NULL; 

@@ -9,15 +9,8 @@ export interface Goal {
   userId: string;
   name: string;
   description?: string;
-  targetDate?: Date;
-  isCompleted?: boolean;
-  category?: string;
-  metricType?: string;
-  startValue?: number;
-  currentValue?: number;
-  targetValue?: number;
-  units?: string;
-  relatedHabits?: RelatedHabits[];
-  createdAt?: Date;
-  updatedAt?: Date;
+  notes?: string;
+  isCompleted: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }

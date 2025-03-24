@@ -4,7 +4,7 @@ import { db } from "~/server/db";
 import { goals } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
 import { goalInputSchema } from "~/schemas";
-import type { Goal, RelatedHabits } from "~/types";
+import type { Goal } from "~/types";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -25,17 +25,7 @@ export async function GET(request: Request) {
     const typedGoals: Goal[] = dbGoals.map((goal) => ({
       ...goal,
       description: goal.description ?? undefined,
-      targetDate: goal.targetDate ?? undefined,
-      isCompleted: goal.isCompleted ?? undefined,
-      category: goal.category ?? undefined,
-      metricType: goal.metricType ?? undefined,
-      startValue: goal.startValue ?? undefined,
-      currentValue: goal.currentValue ?? undefined,
-      targetValue: goal.targetValue ?? undefined,
-      units: goal.units ?? undefined,
-      relatedHabits: (goal.relatedHabits as RelatedHabits[]) ?? undefined,
-      createdAt: goal.createdAt ?? undefined,
-      updatedAt: goal.updatedAt ?? undefined,
+      notes: goal.notes ?? undefined,
     }));
 
     return NextResponse.json(typedGoals);

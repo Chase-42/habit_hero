@@ -1,10 +1,10 @@
 import { z } from "zod";
+import type { Habit } from "~/types/models";
 import type {
-  Habit,
   HabitColor,
   FrequencyType,
   HabitCategory,
-} from "~/types/habit";
+} from "~/types/common/enums";
 
 export const habitColorSchema = z.enum([
   "red",
@@ -14,13 +14,13 @@ export const habitColorSchema = z.enum([
   "purple",
   "pink",
   "orange",
-] as const satisfies readonly HabitColor[]);
+]) as z.ZodType<HabitColor>;
 
 export const frequencyTypeSchema = z.enum([
   "daily",
   "weekly",
   "monthly",
-] as const satisfies readonly FrequencyType[]);
+]) as z.ZodType<FrequencyType>;
 
 export const habitCategorySchema = z.enum([
   "fitness",
@@ -28,7 +28,7 @@ export const habitCategorySchema = z.enum([
   "mindfulness",
   "productivity",
   "other",
-] as const satisfies readonly HabitCategory[]);
+]) as z.ZodType<HabitCategory>;
 
 export const frequencyValueSchema = z.object({
   days: z.array(z.number()).optional(),
@@ -51,7 +51,7 @@ export const habitInputSchema = z.object({
   units: z.string().nullable(),
   notes: z.string().nullable(),
   reminder: z.coerce.date().nullable(),
-  reminderEnabled: z.boolean().nullable(),
+  reminderEnabled: z.boolean(),
   lastCompleted: z.coerce.date().nullable(),
 }) satisfies z.ZodType<
   Omit<Habit, "id" | "createdAt" | "updatedAt" | "streak" | "longestStreak">
@@ -72,7 +72,7 @@ export const updateHabitSchema = z.object({
   units: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
   reminder: z.coerce.date().nullable().optional(),
-  reminderEnabled: z.boolean().nullable().optional(),
+  reminderEnabled: z.boolean().optional(),
 }) satisfies z.ZodType<
   Partial<
     Omit<

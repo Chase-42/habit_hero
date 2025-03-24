@@ -1,9 +1,7 @@
-import type { HabitDetails } from "./common";
+import type { BaseEntity, UserOwned, HabitDetails } from "../common/utils";
 
-export interface HabitLog {
-  id: string;
+export interface HabitLog extends BaseEntity, UserOwned {
   habitId: string;
-  userId: string;
   completedAt: Date;
   value: number | null;
   notes: string | null;

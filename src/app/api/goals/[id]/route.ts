@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
-import { db } from "~/server/db";
-import { goals } from "~/server/db/schema";
-import { eq, and } from "drizzle-orm";
 import { updateGoalSchema } from "~/schemas";
-import type { Goal, RelatedHabits } from "~/types";
+import type { Goal } from "~/types";
 import type { RouteContext, RouteParams } from "~/types/route";
+import {
+  getGoalById,
+  updateGoalById,
+  deleteGoalById,
+} from "~/server/queries/goals";
 
 export async function GET(
   request: Request,
@@ -12,30 +14,13 @@ export async function GET(
 ): Promise<NextResponse<Goal | { error: string }>> {
   try {
     const { id } = await context.params;
-    const [goal] = await db.select().from(goals).where(eq(goals.id, id));
+    const goal = await getGoalById(id);
 
     if (!goal) {
       return NextResponse.json({ error: "Goal not found" }, { status: 404 });
     }
 
-    // Convert null values to undefined to match Goal type
-    const typedGoal: Goal = {
-      ...goal,
-      description: goal.description ?? undefined,
-      targetDate: goal.targetDate ?? undefined,
-      isCompleted: goal.isCompleted ?? undefined,
-      category: goal.category ?? undefined,
-      metricType: goal.metricType ?? undefined,
-      startValue: goal.startValue ?? undefined,
-      currentValue: goal.currentValue ?? undefined,
-      targetValue: goal.targetValue ?? undefined,
-      units: goal.units ?? undefined,
-      relatedHabits: (goal.relatedHabits as RelatedHabits[]) ?? undefined,
-      createdAt: goal.createdAt ?? undefined,
-      updatedAt: goal.updatedAt ?? undefined,
-    };
-
-    return NextResponse.json(typedGoal);
+    return NextResponse.json(goal);
   } catch (error) {
     console.error("Error fetching goal:", error);
     return NextResponse.json(
@@ -53,30 +38,11 @@ export async function PUT(
     const { id } = await context.params;
     const updates = updateGoalSchema.parse(await request.json());
 
-    const [goal] = await db.select().from(goals).where(eq(goals.id, id));
+    const updatedGoal = await updateGoalById(id, updates);
 
-    if (!goal) {
+    if (!updatedGoal) {
       return NextResponse.json({ error: "Goal not found" }, { status: 404 });
     }
-
-    const updatedGoal: Goal = {
-      ...goal,
-      ...updates,
-      description: updates.description ?? undefined,
-      targetDate: updates.targetDate ?? undefined,
-      isCompleted: updates.isCompleted ?? undefined,
-      category: updates.category ?? undefined,
-      metricType: updates.metricType ?? undefined,
-      startValue: updates.startValue ?? undefined,
-      currentValue: updates.currentValue ?? undefined,
-      targetValue: updates.targetValue ?? undefined,
-      units: updates.units ?? undefined,
-      relatedHabits: (updates.relatedHabits as RelatedHabits[]) ?? undefined,
-      createdAt: goal.createdAt ?? undefined,
-      updatedAt: new Date(),
-    };
-
-    await db.update(goals).set(updatedGoal).where(eq(goals.id, id));
 
     return NextResponse.json(updatedGoal);
   } catch (error) {
@@ -104,20 +70,15 @@ export async function DELETE(
       );
     }
 
-    // Check if goal exists and belongs to user
-    const [goal] = await db
-      .select()
-      .from(goals)
-      .where(and(eq(goals.id, id), eq(goals.userId, userId)));
+    const deleted = await deleteGoalById(id, userId);
 
-    if (!goal) {
+    if (!deleted) {
       return NextResponse.json(
         { error: "Goal not found or unauthorized" },
         { status: 404 }
       );
     }
 
-    await db.delete(goals).where(eq(goals.id, id));
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error deleting goal:", error);

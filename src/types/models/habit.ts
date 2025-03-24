@@ -1,13 +1,13 @@
+import type { BaseEntity, UserOwned, FrequencyValue } from "../common/utils";
 import type {
-  FrequencyType,
-  FrequencyValue,
   HabitColor,
+  FrequencyType,
   HabitCategory,
-} from "./common";
+  SortField,
+  SortOrder,
+} from "../common/enums";
 
-export interface Habit {
-  id: string;
-  userId: string;
+export interface Habit extends BaseEntity, UserOwned {
   name: string;
   color: HabitColor;
   frequencyType: FrequencyType;
@@ -17,8 +17,6 @@ export interface Habit {
   longestStreak: number;
   isActive: boolean;
   isArchived: boolean;
-  createdAt: Date;
-  updatedAt: Date;
   description: string | null;
   subCategory: string | null;
   lastCompleted: Date | null;
@@ -30,12 +28,11 @@ export interface Habit {
   reminderEnabled: boolean;
 }
 
-export interface HabitFilters {
-  userId: string;
+export interface HabitFilters extends UserOwned {
   isActive?: boolean;
   isArchived?: boolean;
   category?: HabitCategory;
   searchQuery?: string;
-  sortBy?: "name" | "createdAt" | "category";
-  sortOrder?: "asc" | "desc";
+  sortBy?: SortField;
+  sortOrder?: SortOrder;
 }
