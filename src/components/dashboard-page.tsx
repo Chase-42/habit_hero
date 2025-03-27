@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Calendar } from "lucide-react";
 import { toast } from "sonner";
+import { useUser } from "@clerk/nextjs";
 
 import {
   Card,
@@ -34,12 +35,12 @@ type NewHabit = Omit<
 >;
 
 export function DashboardPage() {
+  const { user } = useUser();
   const [habits, setHabits] = useState<Habit[]>([]);
   const [habitLogs, setHabitLogs] = useState<HabitLog[]>([]);
   const [isAddHabitOpen, setIsAddHabitOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const userId = "user123"; // TODO: Get from auth
 
   const addHabit = async (newHabit: NewHabit) => {
     try {
@@ -57,12 +58,14 @@ export function DashboardPage() {
 
   // Load initial habits
   useEffect(() => {
+    if (!user?.id) return;
+
     const loadHabits = async () => {
       setIsLoading(true);
       setError(null);
 
       try {
-        const habits = await fetchHabits(userId);
+        const habits = await fetchHabits(user.id);
         setHabits(habits);
 
         // Load logs for the past 84 days for all habits
@@ -87,13 +90,18 @@ export function DashboardPage() {
     };
 
     void loadHabits();
-  }, [userId]);
+  }, [user?.id]);
 
   const handleDeleteHabit = async (habit: Habit) => {
+    if (!user?.id) return;
+
     try {
-      const response = await fetch(`/api/habits/${habit.id}?userId=${userId}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `/api/habits/${habit.id}?userId=${user.id}`,
+        {
+          method: "DELETE",
+        }
+      );
 
       if (!response.ok) {
         throw new Error("Failed to delete habit");
@@ -304,7 +312,7 @@ export function DashboardPage() {
                         habitLogs={habitLogs}
                         onComplete={handleCompleteHabit}
                         onDelete={handleDeleteHabit}
-                        userId={userId}
+                        userId={user?.id ?? ""}
                       />
                     </CardContent>
                   </Card>
@@ -322,8 +330,7 @@ export function DashboardPage() {
                         habitLogs={habitLogs}
                         onComplete={handleCompleteHabit}
                         onDelete={handleDeleteHabit}
-                        showAll
-                        userId={userId}
+                        userId={user?.id ?? ""}
                       />
                     </CardContent>
                   </Card>
@@ -355,7 +362,7 @@ export function DashboardPage() {
         open={isAddHabitOpen}
         onOpenChange={setIsAddHabitOpen}
         onAddHabit={addHabit}
-        userId={userId}
+        userId={user?.id ?? ""}
       />
     </div>
   );

@@ -21,7 +21,7 @@ export function Header({ onAddHabit, isLoading = false }: HeaderProps) {
           <SignedIn>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <ChevronRight className="h-4 w-4" />
-              <Link href="/dashboard" className="hover:text-foreground">
+              <Link href="/" className="hover:text-foreground">
                 Dashboard
               </Link>
             </div>

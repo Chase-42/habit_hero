@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { createHabit, getHabits } from "~/server/queries";
 import type { Habit } from "~/types";
 import { habitInputSchema } from "~/schemas";
 import { z } from "zod";
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const userId = searchParams.get("userId");
+  const { userId } = await auth();
 
   if (!userId) {
-    return NextResponse.json({ error: "userId is required" }, { status: 400 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
@@ -25,9 +25,15 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const { userId } = await auth();
+
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const input = habitInputSchema.parse(await request.json());
-    const habit = await createHabit(input);
+    const habit = await createHabit({ ...input, userId });
     return NextResponse.json(habit);
   } catch (error) {
     if (error instanceof z.ZodError) {
