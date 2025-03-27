@@ -1,7 +1,20 @@
 import type React from "react";
 import { ThemeProvider } from "~/components/theme-provider";
 import "./globals.css";
-import { Toaster } from "~/components/ui/sonner";
+
+
+import { Toaster } from "~/components/ui/sonner"
+
+
+
+import {
+  ClerkProvider,
+  SignInButton,
+  SignUpButton,
+  SignedIn,
+  SignedOut,
+  UserButton,
+} from "@clerk/nextjs";
 
 export default function RootLayout({
   children,
@@ -9,16 +22,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <head>
-        <title>HabitHero - Track Your Habits</title>
-        <meta
-          name="description"
-          content="A modern habit tracking application"
-        />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
+    <ClerkProvider>
+      <html lang="en" suppressHydrationWarning>
+        <head>
+          <title>HabitHero - Track Your Habits</title>
+          <meta
+            name="description"
+            content="A modern habit tracking application"
+          />
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `
           (function() {
             const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
             const storedTheme = localStorage.getItem('habit-hero-theme');
@@ -26,13 +40,14 @@ export default function RootLayout({
             document.documentElement.classList.add(theme);
           })()
         `,
-          }}
-        />
-      </head>
-      <body className="min-h-screen bg-background">
-        <ThemeProvider>{children}</ThemeProvider>
-        <Toaster closeButton position="top-center" />
-      </body>
-    </html>
+            }}
+          />
+        </head>
+        <body className="min-h-screen bg-background">
+          <ThemeProvider>{children}</ThemeProvider>
+          <Toaster closeButton position="top-center" />
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }
