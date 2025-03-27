@@ -117,9 +117,6 @@ importers:
       '@eslint/eslintrc':
         specifier: ^3
         version: 3.3.1
-      '@trivago/prettier-plugin-sort-imports':
-        specifier: ^5.2.2
-        version: 5.2.2(prettier@3.4.2)
       '@types/eslint':
         specifier: ^8.56.10
         version: 8.56.12
@@ -3539,6 +3536,7 @@ snapshots:
       '@babel/helper-validator-identifier': 7.25.9
       js-tokens: 4.0.0
       picocolors: 1.1.1
+    optional: true
 
   '@babel/generator@7.27.0':
     dependencies:
@@ -3547,14 +3545,18 @@ snapshots:
       '@jridgewell/gen-mapping': 0.3.8
       '@jridgewell/trace-mapping': 0.3.25
       jsesc: 3.1.0
+    optional: true
 
-  '@babel/helper-string-parser@7.25.9': {}
+  '@babel/helper-string-parser@7.25.9':
+    optional: true
 
-  '@babel/helper-validator-identifier@7.25.9': {}
+  '@babel/helper-validator-identifier@7.25.9':
+    optional: true
 
   '@babel/parser@7.27.0':
     dependencies:
       '@babel/types': 7.27.0
+    optional: true
 
   '@babel/runtime@7.26.10':
     dependencies:
@@ -3565,6 +3567,7 @@ snapshots:
       '@babel/code-frame': 7.26.2
       '@babel/parser': 7.27.0
       '@babel/types': 7.27.0
+    optional: true
 
   '@babel/traverse@7.27.0':
     dependencies:
@@ -3577,11 +3580,13 @@ snapshots:
       globals: 11.12.0
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   '@babel/types@7.27.0':
     dependencies:
       '@babel/helper-string-parser': 7.25.9
       '@babel/helper-validator-identifier': 7.25.9
+    optional: true
 
   '@clerk/backend@1.25.6(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
@@ -4686,6 +4691,7 @@ snapshots:
       prettier: 3.4.2
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   '@types/d3-array@3.2.1': {}
 
@@ -5747,7 +5753,8 @@ snapshots:
       once: 1.4.0
       path-is-absolute: 1.0.1
 
-  globals@11.12.0: {}
+  globals@11.12.0:
+    optional: true
 
   globals@13.24.0:
     dependencies:
@@ -5959,7 +5966,8 @@ snapshots:
     optionalDependencies:
       '@pkgjs/parseargs': 0.11.0
 
-  javascript-natural-sort@0.7.1: {}
+  javascript-natural-sort@0.7.1:
+    optional: true
 
   jiti@1.21.7: {}
 
@@ -5973,7 +5981,8 @@ snapshots:
     dependencies:
       argparse: 2.0.1
 
-  jsesc@3.1.0: {}
+  jsesc@3.1.0:
+    optional: true
 
   json-buffer@3.0.1: {}
 
