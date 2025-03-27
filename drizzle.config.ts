@@ -6,6 +6,7 @@ export default {
   schema: "./src/server/db/schema.ts",
   dialect: "singlestore",
   tablesFilter: ["habit_hero_*"],
+  strict: false,
   dbCredentials: {
     host: env.SINGLESTORE_HOST,
     port: parseInt(env.SINGLESTORE_PORT),

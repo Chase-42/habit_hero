@@ -1,5 +1,3 @@
-import type { FrequencyType } from "./enums";
-
 /**
  * Represents the frequency configuration for a habit
  */

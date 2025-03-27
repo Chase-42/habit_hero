@@ -10,8 +10,8 @@ export const relatedHabitsSchema = z.object({
 export const goalInputSchema = z.object({
   userId: z.string(),
   name: z.string(),
-  description: z.string().optional(),
-  notes: z.string().optional(),
+  description: z.string().nullable(),
+  notes: z.string().nullable(),
   isCompleted: z.boolean(),
 }) satisfies z.ZodType<Omit<Goal, "id" | "createdAt" | "updatedAt">>;
 

@@ -3,17 +3,17 @@ import {
   text,
   singlestoreTable,
   timestamp,
-  boolean,
+  tinyint,
   json,
   index,
+  boolean,
 } from "drizzle-orm/singlestore-core";
-import type {
-  FrequencyValue,
-  HabitColor,
-  HabitCategory,
-  FrequencyType,
-  HabitDetails,
-} from "~/types";
+import type { FrequencyValue, HabitDetails } from "~/types";
+import {
+  type HabitColor,
+  type FrequencyType,
+  type HabitCategory,
+} from "~/types/common/enums";
 
 // Main habits table
 export const habits = singlestoreTable(
@@ -45,8 +45,8 @@ export const habits = singlestoreTable(
     reminderEnabled: boolean("reminderEnabled").notNull().default(false),
   },
   (table) => [
-    index("userId_idx").on(table.userId),
-    index("category_idx").on(table.category),
+    index("habits_userId_idx").on(table.userId),
+    index("habits_category_idx").on(table.category),
   ]
 );
 
@@ -62,6 +62,8 @@ export const habitLogs = singlestoreTable(
     userId: text("userId").notNull(),
     completedAt: timestamp("completedAt").notNull().defaultNow(),
     hasPhoto: boolean("hasPhoto").notNull().default(false),
+    createdAt: timestamp("createdAt").notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt").notNull().defaultNow(),
     // Optional fields
     value: int("value"),
     notes: text("notes"),
@@ -71,9 +73,9 @@ export const habitLogs = singlestoreTable(
     photoUrl: text("photoUrl"),
   },
   (table) => [
-    index("habitId_idx").on(table.habitId),
-    index("userId_idx").on(table.userId),
-    index("completedAt_idx").on(table.completedAt),
+    index("habitLogs_habitId_idx").on(table.habitId),
+    index("habitLogs_userId_idx").on(table.userId),
+    index("habitLogs_completedAt_idx").on(table.completedAt),
   ]
 );
 
@@ -90,5 +92,5 @@ export const goals = singlestoreTable(
     createdAt: timestamp("createdAt").notNull().defaultNow(),
     updatedAt: timestamp("updatedAt").notNull().defaultNow(),
   },
-  (table) => [index("userId_idx").on(table.userId)]
+  (table) => [index("goals_userId_idx").on(table.userId)]
 );

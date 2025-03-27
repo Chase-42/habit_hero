@@ -1,7 +1,0 @@
-{
-  "name": "imports",
-  "description": "Enforce relative imports instead of @ aliases",
-  "pattern": "import\\s+.*?from\\s+['\"]@/",
-  "message": "Use relative imports instead of @ aliases",
-  "severity": "error"
-}

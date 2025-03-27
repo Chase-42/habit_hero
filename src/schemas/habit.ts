@@ -1,33 +1,29 @@
 import { z } from "zod";
 import type { Habit } from "~/types/models";
-import type {
-  HabitColor,
-  FrequencyType,
-  HabitCategory,
-} from "~/types/common/enums";
+import { HabitColor, FrequencyType, HabitCategory } from "~/types/common/enums";
 
 export const habitColorSchema = z.enum([
-  "red",
-  "green",
-  "blue",
-  "yellow",
-  "purple",
-  "pink",
-  "orange",
+  HabitColor.Red,
+  HabitColor.Green,
+  HabitColor.Blue,
+  HabitColor.Yellow,
+  HabitColor.Purple,
+  HabitColor.Pink,
+  HabitColor.Orange,
 ]) as z.ZodType<HabitColor>;
 
 export const frequencyTypeSchema = z.enum([
-  "daily",
-  "weekly",
-  "monthly",
+  FrequencyType.Daily,
+  FrequencyType.Weekly,
+  FrequencyType.Monthly,
 ]) as z.ZodType<FrequencyType>;
 
 export const habitCategorySchema = z.enum([
-  "fitness",
-  "nutrition",
-  "mindfulness",
-  "productivity",
-  "other",
+  HabitCategory.Fitness,
+  HabitCategory.Nutrition,
+  HabitCategory.Mindfulness,
+  HabitCategory.Productivity,
+  HabitCategory.Other,
 ]) as z.ZodType<HabitCategory>;
 
 export const frequencyValueSchema = z.object({
@@ -35,15 +31,26 @@ export const frequencyValueSchema = z.object({
   times: z.number().optional(),
 });
 
-export const habitInputSchema = z.object({
+export const habitDetailsSchema = z.object({
+  duration: z.number().optional(),
+  distance: z.number().optional(),
+  sets: z.number().optional(),
+  reps: z.number().optional(),
+  weight: z.number().optional(),
+  intensity: z.number().optional(),
+  customFields: z
+    .record(z.union([z.string(), z.number(), z.boolean()]))
+    .optional(),
+});
+
+export const newHabitSchema = z.object({
   name: z.string(),
-  userId: z.string(),
   color: habitColorSchema,
   frequencyType: frequencyTypeSchema,
   frequencyValue: frequencyValueSchema,
   category: habitCategorySchema,
-  isActive: z.literal(true),
-  isArchived: z.literal(false),
+  isActive: z.boolean(),
+  isArchived: z.boolean(),
   description: z.string().nullable(),
   subCategory: z.string().nullable(),
   goal: z.number().nullable(),
@@ -52,9 +59,17 @@ export const habitInputSchema = z.object({
   notes: z.string().nullable(),
   reminder: z.coerce.date().nullable(),
   reminderEnabled: z.boolean(),
-  lastCompleted: z.coerce.date().nullable(),
 }) satisfies z.ZodType<
-  Omit<Habit, "id" | "createdAt" | "updatedAt" | "streak" | "longestStreak">
+  Omit<
+    Habit,
+    | "id"
+    | "createdAt"
+    | "updatedAt"
+    | "streak"
+    | "longestStreak"
+    | "lastCompleted"
+    | "userId"
+  >
 >;
 
 export const updateHabitSchema = z.object({

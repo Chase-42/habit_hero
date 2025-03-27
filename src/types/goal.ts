@@ -8,8 +8,8 @@ export interface Goal {
   id: string;
   userId: string;
   name: string;
-  description?: string;
-  notes?: string;
+  description: string | null;
+  notes: string | null;
   isCompleted: boolean;
   createdAt: Date;
   updatedAt: Date;

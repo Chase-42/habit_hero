@@ -21,11 +21,11 @@ export async function GET(request: Request) {
       .where(eq(goals.userId, userId))
       .orderBy(goals.createdAt);
 
-    // Convert null values to undefined to match Goal type
+    // Convert undefined values to null to match Goal type
     const typedGoals: Goal[] = dbGoals.map((goal) => ({
       ...goal,
-      description: goal.description ?? undefined,
-      notes: goal.notes ?? undefined,
+      description: goal.description ?? null,
+      notes: goal.notes ?? null,
     }));
 
     return NextResponse.json(typedGoals);

@@ -16,16 +16,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { AddHabitModal } from "~/components/add-habit-modal";
 import { HabitCalendar } from "~/components/habit-calendar";
 import { HabitList } from "~/components/habit-list";
-import { StatsCards } from "~/components/stats-cards";
 import { WeeklyProgress } from "~/components/weekly-progress";
 import { StreakHeatmap } from "~/components/streak-heatmap";
 import { Header } from "~/components/header";
-import type { Habit, HabitLog, FrequencyType } from "~/types";
+import type { Habit, HabitLog } from "~/types";
+import { FrequencyType } from "~/types/common/enums";
 import {
   createHabit,
   fetchHabits,
   toggleHabit,
-  fetchTodaysLogs,
   fetchHabitLogs,
 } from "~/lib/api-client";
 
@@ -214,14 +213,14 @@ export function DashboardPage() {
     return habits.filter((habit) => {
       if (!habit.isActive || habit.isArchived) return false;
 
-      if (habit.frequencyType === ("daily" as FrequencyType)) return true;
+      if (habit.frequencyType === FrequencyType.Daily) return true;
 
-      if (habit.frequencyType === ("weekly" as FrequencyType)) {
+      if (habit.frequencyType === FrequencyType.Weekly) {
         return habit.frequencyValue.days?.includes(today) ?? false;
       }
 
       // For monthly habits, show them on the 1st of each month
-      if (habit.frequencyType === ("monthly" as FrequencyType)) {
+      if (habit.frequencyType === FrequencyType.Monthly) {
         return new Date().getDate() === 1;
       }
 

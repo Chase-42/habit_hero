@@ -1,5 +1,3 @@
-import type { Habit, Goal, HabitLog } from "../models";
-
 /**
  * Validation error response type
  */

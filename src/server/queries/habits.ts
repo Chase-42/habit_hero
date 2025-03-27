@@ -1,7 +1,13 @@
 import { db } from "~/server/db";
 import { habits, habitLogs } from "~/server/db/schema";
-import type { Habit, HabitFilters, HabitLog, HabitCategory } from "~/types";
+import type { Habit } from "~/types";
+import type {
+  HabitLog,
+  CompletionSummary,
+  StreakSummary,
+} from "~/types/models/log";
 import { eq, like, or, and, type SQL, between, desc } from "drizzle-orm";
+import { type HabitCategory, FrequencyType } from "~/types/common/enums";
 
 // Define types from the schema
 type HabitRow = typeof habits.$inferSelect;
@@ -21,11 +27,15 @@ type HabitFilter = {
  * @returns Array of habits
  */
 export async function getHabits(userId: string): Promise<Habit[]> {
-  return db
+  const results = await db
     .select()
     .from(habits)
     .where(eq(habits.userId, userId))
     .orderBy(desc(habits.createdAt));
+
+  return results.map((habit) => ({
+    ...habit,
+  }));
 }
 
 /**
@@ -123,7 +133,11 @@ export async function deleteHabit(habitId: string): Promise<void> {
  */
 export async function getHabitById(id: string): Promise<Habit | null> {
   const result = await db.select().from(habits).where(eq(habits.id, id));
-  return result[0] ?? null;
+  if (!result[0]) return null;
+
+  return {
+    ...result[0],
+  };
 }
 
 /**
@@ -157,11 +171,11 @@ async function wasHabitCompletedOnTime(
   );
 
   switch (habit.frequencyType) {
-    case "daily":
+    case FrequencyType.Daily:
       return daysBetween <= 1;
-    case "weekly":
+    case FrequencyType.Weekly:
       return daysBetween <= 7;
-    case "monthly":
+    case FrequencyType.Monthly:
       // Check if it's within the same month or the next month
       const lastMonth = lastCompletionDate.getMonth();
       const currentMonth = completedAt.getMonth();
@@ -222,7 +236,19 @@ export async function logHabit(log: Omit<HabitLog, "id">): Promise<HabitLog> {
  */
 export async function getHabitLogs(habitId: string): Promise<HabitLog[]> {
   return db
-    .select()
+    .select({
+      id: habitLogs.id,
+      habitId: habitLogs.habitId,
+      userId: habitLogs.userId,
+      completedAt: habitLogs.completedAt,
+      value: habitLogs.value,
+      notes: habitLogs.notes,
+      details: habitLogs.details,
+      difficulty: habitLogs.difficulty,
+      feeling: habitLogs.feeling,
+      hasPhoto: habitLogs.hasPhoto,
+      photoUrl: habitLogs.photoUrl,
+    })
     .from(habitLogs)
     .where(eq(habitLogs.habitId, habitId))
     .orderBy(habitLogs.completedAt);
@@ -241,7 +267,19 @@ export async function getHabitLogsByDateRange(
   endDate: Date
 ): Promise<HabitLog[]> {
   return db
-    .select()
+    .select({
+      id: habitLogs.id,
+      habitId: habitLogs.habitId,
+      userId: habitLogs.userId,
+      completedAt: habitLogs.completedAt,
+      value: habitLogs.value,
+      notes: habitLogs.notes,
+      details: habitLogs.details,
+      difficulty: habitLogs.difficulty,
+      feeling: habitLogs.feeling,
+      hasPhoto: habitLogs.hasPhoto,
+      photoUrl: habitLogs.photoUrl,
+    })
     .from(habitLogs)
     .where(
       and(
@@ -262,7 +300,19 @@ export async function getCompletionHistory(
   groupBy: "day" | "week" | "month" = "day"
 ): Promise<CompletionSummary[]> {
   const logs = await db
-    .select()
+    .select({
+      id: habitLogs.id,
+      habitId: habitLogs.habitId,
+      userId: habitLogs.userId,
+      completedAt: habitLogs.completedAt,
+      value: habitLogs.value,
+      notes: habitLogs.notes,
+      details: habitLogs.details,
+      difficulty: habitLogs.difficulty,
+      feeling: habitLogs.feeling,
+      hasPhoto: habitLogs.hasPhoto,
+      photoUrl: habitLogs.photoUrl,
+    })
     .from(habitLogs)
     .where(eq(habitLogs.habitId, habitId))
     .orderBy(habitLogs.completedAt);

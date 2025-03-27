@@ -1,4 +1,4 @@
-import { Plus, ChevronRight, Settings } from "lucide-react";
+import { Plus, ChevronRight } from "lucide-react";
 import { SignInButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 import Link from "next/link";
 
