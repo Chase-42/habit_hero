@@ -4,6 +4,7 @@ import { db } from "~/server/db";
 import { habits, habitLogs } from "~/server/db/schema";
 import { eq, and, between } from "drizzle-orm";
 import { habitLogInputSchema } from "~/schemas";
+import type { ApiResponse } from "~/types/api/validation";
 
 export async function GET(request: Request) {
   try {
@@ -13,12 +14,19 @@ export async function GET(request: Request) {
     const endDateStr = searchParams.get("endDate");
 
     if (!habitId) {
-      return NextResponse.json(
-        { error: "habitId is required" },
+      return NextResponse.json<ApiResponse<null>>(
+        {
+          data: null,
+          error: {
+            code: "VALIDATION_ERROR",
+            message: "habitId is required",
+          },
+        },
         { status: 400 }
       );
     }
 
+    let logs;
     if (startDateStr && endDateStr) {
       const startDate = new Date(startDateStr);
       const endDate = new Date(endDateStr);
@@ -29,31 +37,39 @@ export async function GET(request: Request) {
       // Ensure end date is at end of day
       endDate.setHours(23, 59, 59, 999);
 
-      return NextResponse.json(
-        await db
-          .select()
-          .from(habitLogs)
-          .where(
-            and(
-              eq(habitLogs.habitId, habitId),
-              between(habitLogs.completedAt, startDate, endDate)
-            )
+      logs = await db
+        .select()
+        .from(habitLogs)
+        .where(
+          and(
+            eq(habitLogs.habitId, habitId),
+            between(habitLogs.completedAt, startDate, endDate)
           )
-          .orderBy(habitLogs.completedAt)
-      );
-    }
-
-    return NextResponse.json(
-      await db
+        )
+        .orderBy(habitLogs.completedAt);
+    } else {
+      logs = await db
         .select()
         .from(habitLogs)
         .where(eq(habitLogs.habitId, habitId))
-        .orderBy(habitLogs.completedAt)
-    );
+        .orderBy(habitLogs.completedAt);
+    }
+
+    return NextResponse.json<ApiResponse<typeof logs>>({ data: logs });
   } catch (error) {
     console.error("Error fetching habit logs:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch habit logs" },
+    return NextResponse.json<ApiResponse<null>>(
+      {
+        data: null,
+        error: {
+          code: "FETCH_ERROR",
+          message: "Failed to fetch habit logs",
+          details:
+            error instanceof Error
+              ? [{ field: "general", message: error.message }]
+              : undefined,
+        },
+      },
       { status: 500 }
     );
   }
@@ -61,12 +77,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    console.log("POST /api/habits/logs - Start");
     const body = (await request.json()) as unknown;
-    console.log("Request body:", body);
-
     const input = habitLogInputSchema.parse(body);
-    console.log("Validated input:", input);
 
     // Check if habit exists
     const [habit] = await db
@@ -74,22 +86,31 @@ export async function POST(request: Request) {
       .from(habits)
       .where(eq(habits.id, input.habitId));
 
-    console.log("Found habit:", habit);
-
     if (!habit) {
-      console.log("Habit not found:", input.habitId);
-      return NextResponse.json({ error: "Habit not found" }, { status: 404 });
+      return NextResponse.json<ApiResponse<null>>(
+        {
+          data: null,
+          error: {
+            code: "NOT_FOUND",
+            message: "Habit not found",
+          },
+        },
+        { status: 404 }
+      );
     }
 
     // Check if user owns the habit
     if (habit.userId !== input.userId) {
-      console.log(
-        "Unauthorized: habit.userId:",
-        habit.userId,
-        "input.userId:",
-        input.userId
+      return NextResponse.json<ApiResponse<null>>(
+        {
+          data: null,
+          error: {
+            code: "UNAUTHORIZED",
+            message: "Unauthorized access to habit",
+          },
+        },
+        { status: 403 }
       );
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
     // Create the log
@@ -107,10 +128,8 @@ export async function POST(request: Request) {
       hasPhoto: input.hasPhoto,
       photoUrl: input.photoUrl,
     };
-    console.log("Creating new log:", newLog);
 
     await db.insert(habitLogs).values(newLog);
-    console.log("Log inserted successfully");
 
     // Update habit streak
     const today = new Date(
@@ -141,7 +160,6 @@ export async function POST(request: Request) {
           between(habitLogs.completedAt, yesterday, today)
         )
       );
-    console.log("Yesterday's log:", yesterdayLog);
 
     let streak = habit.streak;
     if (!yesterdayLog) {
@@ -154,7 +172,6 @@ export async function POST(request: Request) {
 
     // Update longest streak if needed
     const longestStreak = Math.max(streak, habit.longestStreak);
-    console.log("Updating streak:", { streak, longestStreak });
 
     await db
       .update(habits)
@@ -165,21 +182,39 @@ export async function POST(request: Request) {
         updatedAt: completedAt,
       })
       .where(eq(habits.id, input.habitId));
-    console.log("Habit streak updated");
 
-    return NextResponse.json(newLog);
+    return NextResponse.json<ApiResponse<typeof newLog>>({ data: newLog });
   } catch (error) {
     console.error("Error in POST /api/habits/logs:", error);
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: "Invalid input", details: error.errors },
+      return NextResponse.json<ApiResponse<null>>(
+        {
+          data: null,
+          error: {
+            code: "VALIDATION_ERROR",
+            message: "Invalid input",
+            details: error.errors.map((err) => ({
+              field: err.path.join("."),
+              message: err.message,
+            })),
+          },
+        },
         { status: 400 }
       );
     }
 
-    console.error("Error creating habit log:", error);
-    return NextResponse.json(
-      { error: "Failed to create habit log" },
+    return NextResponse.json<ApiResponse<null>>(
+      {
+        data: null,
+        error: {
+          code: "CREATE_ERROR",
+          message: "Failed to create habit log",
+          details:
+            error instanceof Error
+              ? [{ field: "general", message: error.message }]
+              : undefined,
+        },
+      },
       { status: 500 }
     );
   }

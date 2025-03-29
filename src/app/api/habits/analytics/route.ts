@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCompletionHistory, getStreakHistory } from "~/server/queries";
 import { z } from "zod";
+import type { ApiResponse } from "~/types/api/validation";
 
 const completionQuerySchema = z.object({
   habitId: z.string(),
@@ -18,8 +19,14 @@ export async function GET(request: Request) {
   const type = searchParams.get("type");
 
   if (!type) {
-    return NextResponse.json(
-      { error: "type parameter (completion or streak) is required" },
+    return NextResponse.json<ApiResponse<null>>(
+      {
+        data: null,
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "type parameter (completion or streak) is required",
+        },
+      },
       { status: 400 }
     );
   }
@@ -32,15 +39,25 @@ export async function GET(request: Request) {
       });
 
       if (!result.success) {
-        return NextResponse.json(
-          { error: result.error.errors },
+        return NextResponse.json<ApiResponse<null>>(
+          {
+            data: null,
+            error: {
+              code: "VALIDATION_ERROR",
+              message: "Invalid completion query parameters",
+              details: result.error.errors.map((err) => ({
+                field: err.path.join("."),
+                message: err.message,
+              })),
+            },
+          },
           { status: 400 }
         );
       }
 
       const { habitId, groupBy } = result.data;
       const history = await getCompletionHistory(habitId, groupBy);
-      return NextResponse.json(history);
+      return NextResponse.json<ApiResponse<typeof history>>({ data: history });
     }
 
     if (type === "streak") {
@@ -51,8 +68,18 @@ export async function GET(request: Request) {
       });
 
       if (!result.success) {
-        return NextResponse.json(
-          { error: result.error.errors },
+        return NextResponse.json<ApiResponse<null>>(
+          {
+            data: null,
+            error: {
+              code: "VALIDATION_ERROR",
+              message: "Invalid streak query parameters",
+              details: result.error.errors.map((err) => ({
+                field: err.path.join("."),
+                message: err.message,
+              })),
+            },
+          },
           { status: 400 }
         );
       }
@@ -63,17 +90,33 @@ export async function GET(request: Request) {
         startDate ? new Date(startDate) : null,
         endDate ? new Date(endDate) : null
       );
-      return NextResponse.json(history);
+      return NextResponse.json<ApiResponse<typeof history>>({ data: history });
     }
 
-    return NextResponse.json(
-      { error: "Invalid type parameter. Must be 'completion' or 'streak'" },
+    return NextResponse.json<ApiResponse<null>>(
+      {
+        data: null,
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "Invalid type parameter. Must be 'completion' or 'streak'",
+        },
+      },
       { status: 400 }
     );
   } catch (error) {
     console.error("Error fetching analytics:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch analytics" },
+    return NextResponse.json<ApiResponse<null>>(
+      {
+        data: null,
+        error: {
+          code: "FETCH_ERROR",
+          message: "Failed to fetch analytics",
+          details:
+            error instanceof Error
+              ? [{ field: "general", message: error.message }]
+              : undefined,
+        },
+      },
       { status: 500 }
     );
   }
