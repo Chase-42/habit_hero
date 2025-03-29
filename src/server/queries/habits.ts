@@ -235,23 +235,17 @@ export async function logHabit(log: Omit<HabitLog, "id">): Promise<HabitLog> {
  * @returns Array of logs
  */
 export async function getHabitLogs(habitId: string): Promise<HabitLog[]> {
-  return db
-    .select({
-      id: habitLogs.id,
-      habitId: habitLogs.habitId,
-      userId: habitLogs.userId,
-      completedAt: habitLogs.completedAt,
-      value: habitLogs.value,
-      notes: habitLogs.notes,
-      details: habitLogs.details,
-      difficulty: habitLogs.difficulty,
-      feeling: habitLogs.feeling,
-      hasPhoto: habitLogs.hasPhoto,
-      photoUrl: habitLogs.photoUrl,
-    })
+  const logs = await db
+    .select()
     .from(habitLogs)
     .where(eq(habitLogs.habitId, habitId))
-    .orderBy(habitLogs.completedAt);
+    .orderBy(desc(habitLogs.completedAt));
+
+  return logs.map((log) => ({
+    ...log,
+    createdAt: log.completedAt,
+    updatedAt: log.completedAt,
+  }));
 }
 
 /**
@@ -266,27 +260,39 @@ export async function getHabitLogsByDateRange(
   startDate: Date,
   endDate: Date
 ): Promise<HabitLog[]> {
-  return db
-    .select({
-      id: habitLogs.id,
-      habitId: habitLogs.habitId,
-      userId: habitLogs.userId,
-      completedAt: habitLogs.completedAt,
-      value: habitLogs.value,
-      notes: habitLogs.notes,
-      details: habitLogs.details,
-      difficulty: habitLogs.difficulty,
-      feeling: habitLogs.feeling,
-      hasPhoto: habitLogs.hasPhoto,
-      photoUrl: habitLogs.photoUrl,
-    })
+  const logs = await db
+    .select()
     .from(habitLogs)
     .where(
       and(
         eq(habitLogs.habitId, habitId),
         between(habitLogs.completedAt, startDate, endDate)
       )
-    );
+    )
+    .orderBy(desc(habitLogs.completedAt));
+
+  return logs.map((log) => ({
+    ...log,
+    createdAt: log.completedAt,
+    updatedAt: log.completedAt,
+  }));
+}
+
+function getGroupKey(date: Date, groupBy: "day" | "week" | "month"): string {
+  switch (groupBy) {
+    case "day":
+      return date.toISOString().split("T")[0] ?? date.toDateString();
+    case "week": {
+      // Get Monday of the week
+      const day = date.getDay();
+      const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+      const monday = new Date(date.setDate(diff));
+      return monday.toISOString().split("T")[0] ?? monday.toDateString();
+    }
+    case "month":
+    default:
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+  }
 }
 
 /**
@@ -299,64 +305,32 @@ export async function getCompletionHistory(
   habitId: string,
   groupBy: "day" | "week" | "month" = "day"
 ): Promise<CompletionSummary[]> {
-  const logs = await db
-    .select({
-      id: habitLogs.id,
-      habitId: habitLogs.habitId,
-      userId: habitLogs.userId,
-      completedAt: habitLogs.completedAt,
-      value: habitLogs.value,
-      notes: habitLogs.notes,
-      details: habitLogs.details,
-      difficulty: habitLogs.difficulty,
-      feeling: habitLogs.feeling,
-      hasPhoto: habitLogs.hasPhoto,
-      photoUrl: habitLogs.photoUrl,
-    })
-    .from(habitLogs)
-    .where(eq(habitLogs.habitId, habitId))
-    .orderBy(habitLogs.completedAt);
-
-  if (!logs || logs.length === 0) return [];
-
-  const summaries: CompletionSummary[] = [];
+  const logs = await getHabitLogs(habitId);
   const groupedLogs = new Map<string, HabitLog[]>();
 
-  // Group logs by the specified period
   for (const log of logs) {
-    const date = new Date(log.completedAt);
-    let key: string;
-
-    switch (groupBy) {
-      case "day":
-        key = date.toISOString().split("T")[0] ?? date.toDateString();
-        break;
-      case "week": {
-        // Get Monday of the week
-        const day = date.getDay();
-        const diff = date.getDate() - day + (day === 0 ? -6 : 1);
-        const monday = new Date(date.setDate(diff));
-        key = monday.toISOString().split("T")[0] ?? monday.toDateString();
-        break;
-      }
-      case "month":
-      default:
-        key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-        break;
-    }
-
+    const key = getGroupKey(log.completedAt, groupBy);
     const existingLogs = groupedLogs.get(key) ?? [];
-    groupedLogs.set(key, [...existingLogs, log]);
+    groupedLogs.set(key, [
+      ...existingLogs,
+      {
+        ...log,
+        createdAt: log.completedAt,
+        updatedAt: log.completedAt,
+      },
+    ]);
   }
 
+  const summaries: CompletionSummary[] = [];
+
   // Convert grouped logs to summaries
-  Array.from(groupedLogs.entries()).forEach(([dateStr, logs]) => {
+  for (const [key, logs] of groupedLogs.entries()) {
     summaries.push({
-      date: new Date(dateStr),
+      date: new Date(key),
       count: logs.length,
       details: logs,
     });
-  });
+  }
 
   return summaries.sort((a, b) => a.date.getTime() - b.date.getTime());
 }

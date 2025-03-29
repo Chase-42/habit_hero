@@ -1,23 +1,20 @@
 import type { Habit, HabitLog } from "~/types";
+import type { ApiResponse } from "~/types/api/validation";
 
 type NewHabit = Omit<
   Habit,
   "id" | "createdAt" | "updatedAt" | "streak" | "longestStreak"
 >;
 
-interface ErrorResponse {
-  error: {
-    message: string;
-  };
-}
-
 export async function fetchHabits(userId: string): Promise<Habit[]> {
   const response = await fetch(`/api/habits?userId=${userId}`);
-  if (!response.ok) {
-    const errorData = (await response.json()) as ErrorResponse;
-    throw new Error(errorData.error?.message || "Failed to load habits");
+  const result = (await response.json()) as ApiResponse<Habit[]>;
+
+  if (result.error) {
+    throw new Error(result.error.message);
   }
-  return response.json() as Promise<Habit[]>;
+
+  return result.data;
 }
 
 export async function createHabit(habit: NewHabit): Promise<Habit> {
@@ -29,12 +26,13 @@ export async function createHabit(habit: NewHabit): Promise<Habit> {
     body: JSON.stringify(habit),
   });
 
-  if (!response.ok) {
-    const errorData = (await response.json()) as ErrorResponse;
-    throw new Error(errorData.error?.message || "Failed to create habit");
+  const result = (await response.json()) as ApiResponse<Habit>;
+
+  if (result.error) {
+    throw new Error(result.error.message);
   }
 
-  return response.json() as Promise<Habit>;
+  return result.data;
 }
 
 export async function completeHabit(habit: Habit): Promise<void> {
@@ -57,9 +55,10 @@ export async function completeHabit(habit: Habit): Promise<void> {
     body: JSON.stringify(logData),
   });
 
-  if (!response.ok) {
-    const errorData = (await response.json()) as ErrorResponse;
-    throw new Error(errorData.error?.message || "Failed to complete habit");
+  const result = (await response.json()) as ApiResponse<void>;
+
+  if (result.error) {
+    throw new Error(result.error.message);
   }
 }
 
@@ -72,12 +71,13 @@ export async function fetchHabitLogs(
     `/api/habits/logs?habitId=${habitId}&startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`
   );
 
-  if (!response.ok) {
-    const errorData = (await response.json()) as ErrorResponse;
-    throw new Error(errorData.error?.message || "Failed to fetch habit logs");
+  const result = (await response.json()) as ApiResponse<HabitLog[]>;
+
+  if (result.error) {
+    throw new Error(result.error.message);
   }
 
-  return response.json() as Promise<HabitLog[]>;
+  return result.data;
 }
 
 export async function fetchTodaysLogs(habitId: string): Promise<HabitLog[]> {
@@ -110,9 +110,10 @@ export async function deleteHabitLog(
     method: "DELETE",
   });
 
-  if (!response.ok) {
-    const errorData = (await response.json()) as ErrorResponse;
-    throw new Error(errorData.error?.message || "Failed to uncomplete habit");
+  const result = (await response.json()) as ApiResponse<void>;
+
+  if (result.error) {
+    throw new Error(result.error.message);
   }
 }
 
@@ -129,8 +130,9 @@ export async function toggleHabit(
     }),
   });
 
-  if (!response.ok) {
-    const errorData = (await response.json()) as ErrorResponse;
-    throw new Error(errorData.error?.message || "Failed to toggle habit");
+  const result = (await response.json()) as ApiResponse<void>;
+
+  if (result.error) {
+    throw new Error(result.error.message);
   }
 }

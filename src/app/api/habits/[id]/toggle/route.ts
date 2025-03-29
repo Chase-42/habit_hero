@@ -4,11 +4,16 @@ import { habits, habitLogs } from "~/server/db/schema";
 import { and, between, eq } from "drizzle-orm";
 import { toggleHabitSchema } from "~/schemas";
 import type { RouteContext, RouteParams } from "~/types/route";
+import type { ApiResponse } from "~/types/api/validation";
+
+type ToggleResponse = NextResponse<
+  ApiResponse<{ success: true }> | ApiResponse<null>
+>;
 
 export async function PUT(
   request: Request,
   context: RouteContext<Promise<RouteParams>>
-): Promise<NextResponse<{ success: true } | { error: string }>> {
+): Promise<ToggleResponse> {
   try {
     const { id } = await context.params;
     const input = toggleHabitSchema.parse(await request.json());
@@ -17,13 +22,28 @@ export async function PUT(
     const [habit] = await db.select().from(habits).where(eq(habits.id, id));
 
     if (!habit) {
-      return NextResponse.json({ error: "Habit not found" }, { status: 404 });
+      return NextResponse.json<ApiResponse<null>>(
+        {
+          data: null,
+          error: {
+            code: "NOT_FOUND",
+            message: "Habit not found",
+          },
+        },
+        { status: 404 }
+      );
     }
 
     // Check if the habit belongs to the user
     if (habit.userId !== input.userId) {
-      return NextResponse.json(
-        { error: "Unauthorized to toggle this habit" },
+      return NextResponse.json<ApiResponse<null>>(
+        {
+          data: null,
+          error: {
+            code: "UNAUTHORIZED",
+            message: "Unauthorized to toggle this habit",
+          },
+        },
         { status: 403 }
       );
     }
@@ -92,11 +112,23 @@ export async function PUT(
       }
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json<ApiResponse<{ success: true }>>({
+      data: { success: true },
+    });
   } catch (error) {
     console.error("Error toggling habit:", error);
-    return NextResponse.json(
-      { error: "Failed to toggle habit" },
+    return NextResponse.json<ApiResponse<null>>(
+      {
+        data: null,
+        error: {
+          code: "TOGGLE_ERROR",
+          message: "Failed to toggle habit",
+          details:
+            error instanceof Error
+              ? [{ field: "general", message: error.message }]
+              : undefined,
+        },
+      },
       { status: 500 }
     );
   }

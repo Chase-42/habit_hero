@@ -6,11 +6,7 @@ import type {
   CompletionSummary,
   StreakSummary,
 } from "~/types";
-
-interface ErrorResponse {
-  error: string;
-  details?: unknown;
-}
+import type { ApiResponse } from "~/types/api/validation";
 
 export function useHabits(userId: string) {
   const [isLoading, setIsLoading] = useState(false);
@@ -21,8 +17,13 @@ export function useHabits(userId: string) {
     setError(null);
     try {
       const response = await fetch(`/api/habits?userId=${userId}`);
-      if (!response.ok) throw new Error("Failed to fetch habits");
-      return (await response.json()) as Habit[];
+      const result = (await response.json()) as ApiResponse<Habit[]>;
+
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
+
+      return result.data;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch habits");
       return [];
@@ -40,8 +41,13 @@ export function useHabits(userId: string) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(filters),
       });
-      if (!response.ok) throw new Error("Failed to fetch filtered habits");
-      return (await response.json()) as Habit[];
+      const result = (await response.json()) as ApiResponse<Habit[]>;
+
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
+
+      return result.data;
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to fetch filtered habits"
@@ -56,46 +62,20 @@ export function useHabits(userId: string) {
     setIsLoading(true);
     setError(null);
     try {
-      console.log("logHabit called with:", log);
-      console.log("Making request to /api/habits/logs");
       const response = await fetch("/api/habits/logs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(log),
       });
-      console.log("Response status:", response.status);
-      console.log(
-        "Response headers:",
-        Object.fromEntries(response.headers.entries())
-      );
 
-      const text = await response.text();
-      console.log("Raw response:", text);
+      const result = (await response.json()) as ApiResponse<HabitLog>;
 
-      let data;
-      try {
-        data = JSON.parse(text) as HabitLog | ErrorResponse;
-      } catch (e) {
-        console.error("Failed to parse response as JSON:", e);
-        throw new Error("Invalid JSON response from server");
+      if (result.error) {
+        throw new Error(result.error.message);
       }
 
-      console.log("Parsed response data:", data);
-
-      if (!response.ok) {
-        const errorData = data as ErrorResponse;
-        console.error("Error response:", errorData);
-        throw new Error(
-          typeof errorData.error === "string"
-            ? errorData.error
-            : "Unknown error"
-        );
-      }
-
-      console.log("Success response:", data);
-      return data as HabitLog;
+      return result.data;
     } catch (err) {
-      console.error("Error in logHabit:", err);
       setError(err instanceof Error ? err.message : "Failed to log habit");
       throw err;
     } finally {
@@ -116,8 +96,13 @@ export function useHabits(userId: string) {
       if (endDate) url += `&endDate=${endDate.toISOString()}`;
 
       const response = await fetch(url);
-      if (!response.ok) throw new Error("Failed to fetch habit logs");
-      return (await response.json()) as HabitLog[];
+      const result = (await response.json()) as ApiResponse<HabitLog[]>;
+
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
+
+      return result.data;
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to fetch habit logs"
@@ -164,20 +149,20 @@ export function useHabits(userId: string) {
       if (options?.endDate) url += `&endDate=${options.endDate.toISOString()}`;
 
       const response = await fetch(url);
-      if (!response.ok) throw new Error(`Failed to fetch ${type} analytics`);
+      const result = (await response.json()) as ApiResponse<
+        CompletionSummary[] | StreakSummary[]
+      >;
 
-      if (type === "completion") {
-        return (await response.json()) as CompletionSummary[];
-      } else {
-        return (await response.json()) as StreakSummary[];
+      if (result.error) {
+        throw new Error(result.error.message);
       }
+
+      return result.data;
     } catch (err) {
       setError(
         err instanceof Error ? err.message : `Failed to fetch ${type} analytics`
       );
-      return type === "completion"
-        ? ([] as CompletionSummary[])
-        : ([] as StreakSummary[]);
+      return type === "completion" ? [] : [];
     } finally {
       setIsLoading(false);
     }
@@ -195,7 +180,11 @@ export function useHabits(userId: string) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updates),
       });
-      if (!response.ok) throw new Error("Failed to update habit");
+      const result = (await response.json()) as ApiResponse<void>;
+
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update habit");
       throw err;
@@ -211,7 +200,11 @@ export function useHabits(userId: string) {
       const response = await fetch(`/api/habits/${habitId}`, {
         method: "DELETE",
       });
-      if (!response.ok) throw new Error("Failed to delete habit");
+      const result = (await response.json()) as ApiResponse<void>;
+
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete habit");
       throw err;
