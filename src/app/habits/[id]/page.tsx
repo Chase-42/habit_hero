@@ -1,17 +1,4 @@
-"use client";
-
 import { format } from "date-fns";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
-
-import { Button } from "~/components/ui/button";
 import {
   Card,
   CardContent,
@@ -19,100 +6,92 @@ import {
   CardHeader,
   CardTitle,
 } from "~/components/ui/card";
-import { mockHabits } from "~/lib/mock-data";
-import type { HabitLog } from "~/types";
+import type { Habit } from "~/entities/models/habit";
+import type { HabitLog } from "~/entities/models/habit-log";
+import { container } from "~/infrastructure/container";
+import type { HabitController } from "~/interface-adapters/controllers/habit.controller";
+import type { HabitLogController } from "~/interface-adapters/controllers/habit-log.controller";
+import { HabitChart } from "~/components/habit-chart";
 
-export default function HabitPage({ params }: { params: { id: string } }) {
-  const habit = mockHabits.find((h) => h.id === params.id);
+export default async function HabitPage({
+  params,
+}: {
+  params: { id: string };
+}) {
+  const habitController = container.resolve<HabitController>("HabitController");
+  const habitLogController =
+    container.resolve<HabitLogController>("HabitLogController");
 
-  if (!habit) {
+  const habitResult = await habitController.getHabit(params.id);
+
+  if (!habitResult.ok) {
     return <div>Habit not found</div>;
   }
 
-  // Assuming we'll get habitLogs from somewhere - for now using empty array
-  const habitLogs: HabitLog[] = [];
-  const chartData = habitLogs
-    .filter((log) => log.habitId === habit.id)
-    .map((log) => ({
-      date: format(new Date(log.completedAt), "MMM d"),
-      completed: 1,
-    }));
+  const habit = habitResult.value;
+
+  // Get logs for the last 30 days
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  const logsResponse = await fetch(
+    `/api/habits/logs?habitId=${habit.id}&userId=${habit.userId}&startDate=${thirtyDaysAgo.toISOString()}&endDate=${new Date().toISOString()}`
+  );
+
+  if (!logsResponse.ok) {
+    return <div>Failed to load habit logs</div>;
+  }
+
+  const habitLogs = (await logsResponse.json()) as HabitLog[];
+
+  const chartData = habitLogs.map((log) => ({
+    date: format(new Date(log.completedAt), "MMM d"),
+    completed: 1,
+  }));
 
   return (
-    <div className="container py-6">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">{habit.name}</h1>
-        <p className="text-muted-foreground">
-          {habit.frequencyType} • {habit.category}
-        </p>
-      </div>
+    <div className="container mx-auto p-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>{habit.title}</CardTitle>
+          <CardDescription>{habit.description}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <h3 className="font-semibold">Category</h3>
+              <p>{habit.category}</p>
+            </div>
+            <div>
+              <h3 className="font-semibold">Frequency</h3>
+              <p>
+                {habit.frequencyType === "daily"
+                  ? "Daily"
+                  : habit.frequencyType === "weekly"
+                    ? "Weekly"
+                    : "Monthly"}
+              </p>
+            </div>
+            <div>
+              <h3 className="font-semibold">Current Streak</h3>
+              <p>{habit.streak} days</p>
+            </div>
+            <div>
+              <h3 className="font-semibold">Longest Streak</h3>
+              <p>{habit.longestStreak} days</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-      <div className="grid gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Progress</CardTitle>
-            <CardDescription>Your habit completion over time</CardDescription>
-          </CardHeader>
-          <CardContent className="h-[300px] pt-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Line
-                  type="monotone"
-                  dataKey="completed"
-                  stroke="#2563eb"
-                  strokeWidth={2}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <div className="font-medium">Goal</div>
-                <div className="text-muted-foreground">{habit.goal}</div>
-              </div>
-              {habit.notes && (
-                <div>
-                  <div className="font-medium">Notes</div>
-                  <div className="text-muted-foreground">{habit.notes}</div>
-                </div>
-              )}
-              {habit.reminder && (
-                <div>
-                  <div className="font-medium">Reminder</div>
-                  <div className="text-muted-foreground">
-                    {format(habit.reminder, "PPp")}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Settings</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Button variant="outline" className="w-full">
-                Edit Habit
-              </Button>
-              <Button variant="destructive" className="w-full">
-                Delete Habit
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      <Card className="mt-4">
+        <CardHeader>
+          <CardTitle>Completion History</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <HabitChart data={chartData} />
+        </CardContent>
+      </Card>
     </div>
   );
 }

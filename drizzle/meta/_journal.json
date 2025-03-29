@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "singlestore",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "1",
+      "when": 1743181452843,
+      "tag": "0000_messy_sasquatch",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "1",
+      "when": 1743212189345,
+      "tag": "0001_wakeful_lethal_legion",
+      "breakpoints": true
+    }
+  ]
+}

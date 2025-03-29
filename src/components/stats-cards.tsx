@@ -3,7 +3,7 @@
 import { Activity, Calendar, Target, Trophy } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { useEffect, useState } from "react";
-import type { Habit, HabitLog } from "~/types";
+import type { Habit, HabitLog } from "~/entities/models";
 
 interface StatsCardsProps {
   habits: Habit[];

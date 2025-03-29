@@ -1,0 +1,14 @@
+# Cursor Rules for Habit Hero
+# This file defines rules for the Cursor IDE
+
+# Protected Files - These files should never be modified directly
+protected_files:
+  - src/infrastructure/database/schema.ts
+
+# Rules for Protected Files
+rules:
+  - file: src/infrastructure/database/schema.ts
+    description: "Database schema definition - source of truth for database structure"
+    protection_level: "strict"
+    allowed_operations: []
+    message: "schema.ts is the source of truth for database structure. All other code must adapt to match this schema. Never modify this file directly."

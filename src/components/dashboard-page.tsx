@@ -20,19 +20,18 @@ import { StatsCards } from "~/components/stats-cards";
 import { WeeklyProgress } from "~/components/weekly-progress";
 import { StreakHeatmap } from "~/components/streak-heatmap";
 import { Header } from "~/components/header";
-import type { Habit, HabitLog, FrequencyType } from "~/types";
+import type { Habit } from "~/entities/models/habit";
+import type { HabitLog } from "~/entities/models/habit-log";
+import type { FrequencyType } from "~/entities/types/common";
+import type { NewHabitForm } from "~/entities/types/form";
 import {
   createHabit,
   fetchHabits,
   toggleHabit,
   fetchTodaysLogs,
   fetchHabitLogs,
+  deleteHabit,
 } from "~/lib/api-client";
-
-type NewHabit = Omit<
-  Habit,
-  "id" | "createdAt" | "updatedAt" | "streak" | "longestStreak"
->;
 
 export function DashboardPage() {
   const { user } = useUser();
@@ -42,9 +41,9 @@ export function DashboardPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const addHabit = async (newHabit: NewHabit) => {
+  const addHabit = async (formData: NewHabitForm) => {
     try {
-      const habit = await createHabit(newHabit);
+      const habit = await createHabit(formData);
       console.log("Added new habit:", habit);
       setHabits((currentHabits) => [...currentHabits, habit]);
       toast.success("Habit created successfully!");
@@ -76,7 +75,12 @@ export function DashboardPage() {
         // Fetch logs for each habit
         const allLogs = await Promise.all(
           habits.map(async (habit) => {
-            const logs = await fetchHabitLogs(habit.id, startDate, endDate);
+            const logs = await fetchHabitLogs(
+              habit.id,
+              startDate,
+              endDate,
+              user.id
+            );
             return logs;
           })
         );
@@ -96,16 +100,7 @@ export function DashboardPage() {
     if (!user?.id) return;
 
     try {
-      const response = await fetch(
-        `/api/habits/${habit.id}?userId=${user.id}`,
-        {
-          method: "DELETE",
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to delete habit");
-      }
+      await deleteHabit(habit.id, user.id);
 
       // Update local state
       setHabits((prevHabits) => prevHabits.filter((h) => h.id !== habit.id));
@@ -118,12 +113,14 @@ export function DashboardPage() {
     }
   };
 
-  const handleCompleteHabit = async (habit: Habit) => {
+  const handleToggleHabit = async (habit: Habit) => {
+    if (!user) return;
+
     const isCompleted = habit.lastCompleted !== null;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Optimistically update UI
+    // Optimistic updates
     setHabits((prevHabits) =>
       prevHabits.map((h) =>
         h.id === habit.id
@@ -136,7 +133,6 @@ export function DashboardPage() {
       )
     );
 
-    // Update logs state
     setHabitLogs((prevLogs) => {
       if (isCompleted) {
         // Remove today's log
@@ -147,31 +143,22 @@ export function DashboardPage() {
         );
       } else {
         // Add today's log
-        const now = new Date();
-        return [
-          ...prevLogs,
-          {
-            id: crypto.randomUUID(),
-            habitId: habit.id,
-            userId: habit.userId,
-            completedAt: today,
-            value: null,
-            notes: null,
-            details: null,
-            difficulty: null,
-            feeling: null,
-            hasPhoto: false,
-            photoUrl: null,
-            createdAt: now,
-            updatedAt: now,
-          },
-        ];
+        const newLog: HabitLog = {
+          id: crypto.randomUUID(),
+          habitId: habit.id,
+          userId: user.id,
+          completedAt: today,
+          hasPhoto: false,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        return [...prevLogs, newLog];
       }
     });
 
     try {
       // Make API call
-      await toggleHabit(habit, isCompleted);
+      await toggleHabit({ ...habit, userId: user.id }, isCompleted);
     } catch (error) {
       // Revert optimistic updates on error
       setHabits((prevHabits) =>
@@ -214,14 +201,18 @@ export function DashboardPage() {
     return habits.filter((habit) => {
       if (!habit.isActive || habit.isArchived) return false;
 
-      if (habit.frequencyType === ("daily" as FrequencyType)) return true;
+      if (habit.frequencyType === "daily") return true;
 
-      if (habit.frequencyType === ("weekly" as FrequencyType)) {
-        return habit.frequencyValue.days?.includes(today) ?? false;
+      if (habit.frequencyType === "weekly") {
+        return (
+          (habit.frequencyValue.type === "weekly" &&
+            habit.frequencyValue.daysOfWeek?.includes(today)) ??
+          false
+        );
       }
 
       // For monthly habits, show them on the 1st of each month
-      if (habit.frequencyType === ("monthly" as FrequencyType)) {
+      if (habit.frequencyType === "monthly") {
         return new Date().getDate() === 1;
       }
 
@@ -310,7 +301,7 @@ export function DashboardPage() {
                       <HabitList
                         habits={getTodayHabits()}
                         habitLogs={habitLogs}
-                        onComplete={handleCompleteHabit}
+                        onComplete={handleToggleHabit}
                         onDelete={handleDeleteHabit}
                         userId={user?.id ?? ""}
                       />
@@ -328,7 +319,7 @@ export function DashboardPage() {
                       <HabitList
                         habits={habits}
                         habitLogs={habitLogs}
-                        onComplete={handleCompleteHabit}
+                        onComplete={handleToggleHabit}
                         onDelete={handleDeleteHabit}
                         userId={user?.id ?? ""}
                       />

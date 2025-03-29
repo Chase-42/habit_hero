@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useHabits } from "~/hooks/use-habits";
-import type { Habit, HabitLog } from "~/types";
+import { useHabits } from "~/frameworks/next/hooks/use-habits";
+import type { Habit, HabitLog } from "~/entities/models/habit";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { AddHabitModal } from "~/components/add-habit-modal";
@@ -102,13 +102,7 @@ export function HabitDashboard({ userId }: HabitDashboardProps) {
         habitId: habit.id,
         userId: habit.userId,
         completedAt: new Date(),
-        value: null,
-        notes: null,
-        details: null,
-        difficulty: null,
-        feeling: null,
         hasPhoto: false,
-        photoUrl: null,
         createdAt: new Date(),
         updatedAt: new Date(),
       };

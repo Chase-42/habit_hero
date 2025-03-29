@@ -10,8 +10,11 @@ import {
   CartesianGrid,
   type TooltipProps,
 } from "recharts";
-import type { HabitCategory } from "~/types";
-import type { CategoryData, HabitCategoryChartProps } from "~/types/chart";
+import type { HabitCategory } from "~/entities/models";
+import type {
+  CategoryData,
+  HabitCategoryChartProps,
+} from "~/frameworks/next/types";
 import { Card } from "~/components/ui/card";
 
 const categoryColors: Record<HabitCategory, string> = {
@@ -31,21 +34,23 @@ const categoryLabels: Record<HabitCategory, string> = {
 };
 
 export function HabitCategoryChart({ habits }: HabitCategoryChartProps) {
-  const data: CategoryData[] = Object.entries(
-    habits.reduce(
-      (acc, habit) => {
-        const category = habit.category;
-        acc[category] = (acc[category] || 0) + 1;
-        return acc;
-      },
-      {} as Record<HabitCategory, number>
-    )
-  ).map(([category, count]) => ({
-    name: category as HabitCategory,
-    value: count,
-    label: categoryLabels[category as HabitCategory],
-    color: categoryColors[category as HabitCategory],
-  }));
+  const habitsByCategory = habits.reduce<Record<HabitCategory, number>>(
+    (acc, habit) => {
+      acc[habit.category as HabitCategory] =
+        (acc[habit.category as HabitCategory] || 0) + 1;
+      return acc;
+    },
+    {} as Record<HabitCategory, number>
+  );
+
+  const data: CategoryData[] = Object.entries(habitsByCategory).map(
+    ([category, count]) => ({
+      name: category as HabitCategory,
+      value: count,
+      label: categoryLabels[category as HabitCategory],
+      color: categoryColors[category as HabitCategory],
+    })
+  );
 
   const CustomTooltip = ({ active, payload }: TooltipProps<number, string>) => {
     if (!active || !payload?.[0]?.payload) return null;

@@ -1,6 +1,12 @@
+import "reflect-metadata";
 import { NextResponse } from "next/server";
-import { getCompletionHistory, getStreakHistory } from "~/server/queries";
+import type { NextRequest } from "next/server";
+import { container } from "../../../../infrastructure/container";
 import { z } from "zod";
+import { withErrorHandler } from "../../../../interface-adapters/middleware/error-handler.middleware";
+import { withAuth } from "../../../../interface-adapters/middleware/auth.middleware";
+import { ValidationError, NotFoundError } from "../../../../entities/errors";
+import { type HabitAnalytics } from "../../../../infrastructure/services/habit-analytics";
 
 const completionQuerySchema = z.object({
   habitId: z.string(),
@@ -13,7 +19,9 @@ const streakQuerySchema = z.object({
   endDate: z.string().optional(),
 });
 
-export async function GET(request: Request) {
+const analyticsHandler = async (
+  request: NextRequest
+): Promise<NextResponse> => {
   const { searchParams } = new URL(request.url);
   const type = searchParams.get("type");
 
@@ -25,6 +33,8 @@ export async function GET(request: Request) {
   }
 
   try {
+    const analytics = container.resolve<HabitAnalytics>("HabitAnalytics");
+
     if (type === "completion") {
       const result = completionQuerySchema.safeParse({
         habitId: searchParams.get("habitId"),
@@ -38,8 +48,8 @@ export async function GET(request: Request) {
         );
       }
 
-      const { habitId, groupBy } = result.data;
-      const history = await getCompletionHistory(habitId, groupBy);
+      const { habitId, groupBy = "day" } = result.data;
+      const history = await analytics.getCompletionHistory(habitId, groupBy);
       return NextResponse.json(history);
     }
 
@@ -58,7 +68,7 @@ export async function GET(request: Request) {
       }
 
       const { habitId, startDate, endDate } = result.data;
-      const history = await getStreakHistory(
+      const history = await analytics.getStreakHistory(
         habitId,
         startDate ? new Date(startDate) : null,
         endDate ? new Date(endDate) : null
@@ -77,4 +87,6 @@ export async function GET(request: Request) {
       { status: 500 }
     );
   }
-}
+};
+
+export const GET = analyticsHandler;

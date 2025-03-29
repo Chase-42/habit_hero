@@ -29,8 +29,25 @@ import { cn } from "~/lib/utils";
 import { Checkbox } from "~/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group";
 import { TimePicker } from "~/components/time-picker";
-import type { NewHabit, Category, Frequency, Day, Color } from "~/types/form";
-import { HabitCategory, FrequencyType, HabitColor } from "~/types/common/enums";
+import type {
+  CreateHabit,
+  HabitCategory,
+  FrequencyType,
+  HabitColor,
+} from "~/entities/models/habit";
+import type {
+  CategoryOption,
+  FrequencyOption,
+  DayOption,
+  ColorOption,
+} from "~/frameworks/next/types/ui/habit";
+import type { NewHabitForm } from "~/entities/types/form";
+import {
+  CATEGORY_OPTIONS,
+  FREQUENCY_OPTIONS,
+  DAY_OPTIONS,
+  COLOR_OPTIONS,
+} from "~/frameworks/next/types/ui/habit";
 import {
   Select,
   SelectContent,
@@ -38,46 +55,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
+import { toast } from "sonner";
 
-const categories: Category[] = [
-  { label: "Fitness", value: HabitCategory.Fitness },
-  { label: "Nutrition", value: HabitCategory.Nutrition },
-  { label: "Mindfulness", value: HabitCategory.Mindfulness },
-  { label: "Productivity", value: HabitCategory.Productivity },
-  { label: "Other", value: HabitCategory.Other },
-];
+const categories = CATEGORY_OPTIONS;
+const frequencies = FREQUENCY_OPTIONS;
+const days = DAY_OPTIONS;
+const colors = COLOR_OPTIONS;
 
-const frequencies: Frequency[] = [
-  { label: "Daily", value: FrequencyType.Daily },
-  { label: "Weekly", value: FrequencyType.Weekly },
-  { label: "Monthly", value: FrequencyType.Monthly },
-];
-
-const days: Day[] = [
-  { label: "Sunday", value: 0 },
-  { label: "Monday", value: 1 },
-  { label: "Tuesday", value: 2 },
-  { label: "Wednesday", value: 3 },
-  { label: "Thursday", value: 4 },
-  { label: "Friday", value: 5 },
-  { label: "Saturday", value: 6 },
-];
-
-const colors: Color[] = [
-  { label: "Red", value: HabitColor.Red, class: "bg-red-500" },
-  { label: "Green", value: HabitColor.Green, class: "bg-green-500" },
-  { label: "Blue", value: HabitColor.Blue, class: "bg-blue-500" },
-  { label: "Yellow", value: HabitColor.Yellow, class: "bg-yellow-500" },
-  { label: "Purple", value: HabitColor.Purple, class: "bg-purple-500" },
-  { label: "Pink", value: HabitColor.Pink, class: "bg-pink-500" },
-  { label: "Orange", value: HabitColor.Orange, class: "bg-orange-500" },
-];
+// Default values
+const DEFAULT_CATEGORY = CATEGORY_OPTIONS[0]?.value ?? "other";
+const DEFAULT_FREQUENCY = FREQUENCY_OPTIONS[0]?.value ?? "daily";
+const DEFAULT_COLOR = COLOR_OPTIONS[0]?.value ?? "blue";
 
 interface AddHabitModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   userId: string;
-  onAddHabit: (habit: NewHabit) => Promise<void>;
+  onAddHabit: (habit: NewHabitForm) => Promise<void>;
   isLoading?: boolean;
 }
 
@@ -88,15 +82,12 @@ export function AddHabitModal({
   onAddHabit,
 }: AddHabitModalProps) {
   const [name, setName] = useState("");
-  const [category, setCategory] = useState<Category["value"]>(
-    HabitCategory.Other
-  );
-  const [frequencyType, setFrequencyType] = useState<Frequency["value"]>(
-    FrequencyType.Daily
-  );
+  const [category, setCategory] = useState<HabitCategory>(DEFAULT_CATEGORY);
+  const [frequencyType, setFrequencyType] =
+    useState<FrequencyType>(DEFAULT_FREQUENCY);
   const [selectedDays, setSelectedDays] = useState<number[]>([]);
   const [timesPerFrequency, setTimesPerFrequency] = useState(1);
-  const [color, setColor] = useState<Color["value"]>(HabitColor.Blue);
+  const [color, setColor] = useState<HabitColor>(DEFAULT_COLOR);
   const [reminderTime, setReminderTime] = useState<string | undefined>();
   const [goal, setGoal] = useState<number | null>(null);
   const [notes, setNotes] = useState<string | null>(null);
@@ -105,11 +96,11 @@ export function AddHabitModal({
 
   const resetForm = () => {
     setName("");
-    setCategory(HabitCategory.Other);
-    setFrequencyType(FrequencyType.Daily);
+    setCategory(DEFAULT_CATEGORY);
+    setFrequencyType(DEFAULT_FREQUENCY);
     setSelectedDays([]);
     setTimesPerFrequency(1);
-    setColor(HabitColor.Blue);
+    setColor(DEFAULT_COLOR);
     setReminderTime(undefined);
     setGoal(null);
     setNotes(null);
@@ -121,36 +112,52 @@ export function AddHabitModal({
 
     // Validate required fields
     if (!name) {
-      alert("Please enter a habit name");
+      toast.error("Please enter a habit name");
       return;
     }
 
-    if (frequencyType === FrequencyType.Weekly && selectedDays.length === 0) {
-      alert("Please select at least one day for weekly habits");
+    if (frequencyType === "weekly" && selectedDays.length === 0) {
+      toast.error("Please select at least one day for weekly habits");
       return;
     }
 
-    const habit: NewHabit = {
-      name,
+    // Transform the form data to match our domain model
+    const frequencyValue = (() => {
+      switch (frequencyType) {
+        case "daily":
+          return { type: "daily" as const, times: timesPerFrequency };
+        case "weekly":
+          return {
+            type: "weekly" as const,
+            daysOfWeek: selectedDays,
+            times: timesPerFrequency,
+          };
+        case "monthly":
+          return {
+            type: "monthly" as const,
+            daysOfMonth: selectedDays,
+            times: timesPerFrequency,
+          };
+        case "specific_days":
+          return {
+            type: "specific_days" as const,
+            days: selectedDays.map((day) => new Date(day)),
+            times: timesPerFrequency,
+          };
+        default:
+          throw new Error("Invalid frequency type");
+      }
+    })();
+
+    const habit: NewHabitForm = {
       userId,
+      name,
+      description: notes ?? "",
       category,
-      frequencyType,
-      frequencyValue: {
-        days: frequencyType === FrequencyType.Weekly ? selectedDays : [],
-        times: timesPerFrequency,
-      },
       color,
-      isActive: true,
-      isArchived: false,
-      description: null,
-      subCategory: null,
-      goal,
-      metricType: null,
-      units,
-      notes,
-      reminder: reminderTime ? new Date(reminderTime) : null,
-      reminderEnabled: reminderTime !== undefined,
-      lastCompleted: null,
+      frequencyType,
+      frequencyValue,
+      notes: notes ?? "",
     };
 
     try {
@@ -161,7 +168,9 @@ export function AddHabitModal({
       onOpenChange(false);
     } catch (err) {
       console.error("Error submitting habit:", err);
-      alert(err instanceof Error ? err.message : "Failed to create habit");
+      toast.error(
+        err instanceof Error ? err.message : "Failed to create habit"
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -236,9 +245,7 @@ export function AddHabitModal({
             <label className="text-sm font-medium">Frequency</label>
             <RadioGroup
               value={frequencyType}
-              onValueChange={(value: Frequency["value"]) =>
-                setFrequencyType(value)
-              }
+              onValueChange={(value: FrequencyType) => setFrequencyType(value)}
               className="flex flex-col space-y-1"
             >
               {frequencies.map((frequency) => (
@@ -253,24 +260,9 @@ export function AddHabitModal({
             </RadioGroup>
           </div>
 
-          <div>
-            <label className="text-sm font-medium">
-              Times per {frequencyType}
-            </label>
-            <Input
-              type="number"
-              min={1}
-              value={timesPerFrequency}
-              onChange={(e) =>
-                setTimesPerFrequency(Number(e.target.value) || 1)
-              }
-              placeholder={`e.g., 2 times per ${frequencyType}`}
-            />
-          </div>
-
-          {frequencyType === FrequencyType.Weekly && (
+          {frequencyType === "weekly" && (
             <div className="space-y-3">
-              <label className="text-sm font-medium">Select Days</label>
+              <label className="text-sm font-medium">Select Days of Week</label>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {days.map((day) => (
                   <div key={day.value} className="flex items-center space-x-2">
@@ -290,6 +282,71 @@ export function AddHabitModal({
               </div>
             </div>
           )}
+
+          {frequencyType === "monthly" && (
+            <div className="space-y-3">
+              <label className="text-sm font-medium">
+                Select Days of Month
+              </label>
+              <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
+                {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                  <div key={day} className="flex items-center space-x-2">
+                    <Checkbox
+                      checked={selectedDays.includes(day)}
+                      onCheckedChange={(checked) => {
+                        setSelectedDays(
+                          checked
+                            ? [...selectedDays, day]
+                            : selectedDays.filter((d) => d !== day)
+                        );
+                      }}
+                    />
+                    <label className="text-sm">{day}</label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {frequencyType === "specific_days" && (
+            <div className="space-y-3">
+              <label className="text-sm font-medium">
+                Select Specific Days
+              </label>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {days.map((day) => (
+                  <div key={day.value} className="flex items-center space-x-2">
+                    <Checkbox
+                      checked={selectedDays.includes(day.value)}
+                      onCheckedChange={(checked) => {
+                        setSelectedDays(
+                          checked
+                            ? [...selectedDays, day.value]
+                            : selectedDays.filter((d) => d !== day.value)
+                        );
+                      }}
+                    />
+                    <label className="text-sm">{day.label}</label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div>
+            <label className="text-sm font-medium">
+              Times per {frequencyType}
+            </label>
+            <Input
+              type="number"
+              min={1}
+              value={timesPerFrequency}
+              onChange={(e) =>
+                setTimesPerFrequency(Number(e.target.value) || 1)
+              }
+              placeholder={`e.g., 2 times per ${frequencyType}`}
+            />
+          </div>
 
           <div>
             <label className="text-sm font-medium">Color Tag</label>

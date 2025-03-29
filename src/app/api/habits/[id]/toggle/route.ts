@@ -1,103 +1,83 @@
+import "reflect-metadata";
 import { NextResponse } from "next/server";
-import { db } from "~/server/db";
-import { habits, habitLogs } from "~/server/db/schema";
-import { and, between, eq } from "drizzle-orm";
-import { toggleHabitSchema } from "~/schemas";
-import type { RouteContext, RouteParams } from "~/types/route";
+import type { NextRequest } from "next/server";
+import { container } from "../../../../../infrastructure/container";
+import { type HabitController } from "../../../../../interface-adapters/controllers/habit.controller";
+import { z } from "zod";
+import { ValidationError, NotFoundError } from "../../../../../entities/errors";
 
-export async function PUT(
-  request: Request,
-  context: RouteContext<Promise<RouteParams>>
-): Promise<NextResponse<{ success: true } | { error: string }>> {
+const toggleHabitSchema = z.object({
+  completed: z.boolean(),
+  userId: z.string(),
+});
+
+export async function PUT(request: NextRequest): Promise<NextResponse> {
   try {
-    const { id } = await context.params;
-    const input = toggleHabitSchema.parse(await request.json());
+    console.log("Toggle habit request received");
+    const url = new URL(request.url);
+    const id = url.pathname.split("/")[3] ?? "";
+    console.log("Habit ID:", id);
 
-    // Get the habit
-    const [habit] = await db.select().from(habits).where(eq(habits.id, id));
+    const body = (await request.json()) as unknown;
+    console.log("Request body:", JSON.stringify(body, null, 2));
 
-    if (!habit) {
-      return NextResponse.json({ error: "Habit not found" }, { status: 404 });
-    }
+    try {
+      const validatedData = toggleHabitSchema.parse(body);
+      console.log("Validated data:", JSON.stringify(validatedData, null, 2));
 
-    // Check if the habit belongs to the user
-    if (habit.userId !== input.userId) {
-      return NextResponse.json(
-        { error: "Unauthorized to toggle this habit" },
-        { status: 403 }
-      );
-    }
+      const habitController =
+        container.resolve<HabitController>("HabitController");
+      console.log("Calling toggleHabit with:", {
+        id,
+        userId: validatedData.userId,
+        completed: validatedData.completed,
+      });
 
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const tomorrow = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate() + 1
-    );
-
-    // Check if there's already a log for today
-    const [existingLog] = await db
-      .select()
-      .from(habitLogs)
-      .where(
-        and(
-          eq(habitLogs.habitId, id),
-          between(habitLogs.completedAt, today, tomorrow)
-        )
+      const result = await habitController.toggleHabit(
+        id,
+        validatedData.userId,
+        validatedData.completed
       );
 
-    if (input.completed) {
-      // If marking as completed and no log exists, create one
-      if (!existingLog) {
-        await db.insert(habitLogs).values({
-          id: crypto.randomUUID(),
-          habitId: id,
-          userId: input.userId,
-          completedAt: now,
-          value: null,
-          notes: null,
-          details: null,
-          difficulty: null,
-          feeling: null,
-          hasPhoto: false,
-          photoUrl: null,
-        });
-
-        // Update habit's streak and last completed
-        await db
-          .update(habits)
-          .set({
-            lastCompleted: now,
-            streak: habit.streak + 1,
-            longestStreak: Math.max(habit.longestStreak, habit.streak + 1),
-            updatedAt: now,
-          })
-          .where(eq(habits.id, id));
+      if (!result.ok) {
+        console.error("Toggle habit failed:", result.error);
+        if (result.error instanceof ValidationError) {
+          return NextResponse.json(
+            { error: result.error.message },
+            { status: 400 }
+          );
+        }
+        if (result.error instanceof NotFoundError) {
+          return NextResponse.json(
+            { error: result.error.message },
+            { status: 404 }
+          );
+        }
+        return NextResponse.json(
+          { error: "Failed to toggle habit" },
+          { status: 500 }
+        );
       }
-    } else {
-      // If marking as uncompleted and a log exists, delete it
-      if (existingLog) {
-        await db.delete(habitLogs).where(eq(habitLogs.id, existingLog.id));
 
-        // Update habit's streak and last completed
-        await db
-          .update(habits)
-          .set({
-            lastCompleted: null,
-            streak: Math.max(0, habit.streak - 1),
-            updatedAt: now,
-          })
-          .where(eq(habits.id, id));
+      console.log("Toggle habit successful");
+      return NextResponse.json(result.value);
+    } catch (validationError) {
+      console.error("Validation error:", validationError);
+      if (validationError instanceof z.ZodError) {
+        return NextResponse.json(
+          { error: "Invalid toggle data", details: validationError.errors },
+          { status: 400 }
+        );
       }
+      throw validationError;
     }
-
-    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error toggling habit:", error);
+    console.error("Unhandled error in toggle habit handler:", error);
     return NextResponse.json(
-      { error: "Failed to toggle habit" },
+      { error: "Failed to process request" },
       { status: 500 }
     );
   }
 }
+
+export const POST = PUT;

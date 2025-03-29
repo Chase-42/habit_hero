@@ -19,9 +19,29 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
-import type { Habit } from "~/types";
+import type {
+  Habit,
+  FrequencyType,
+  HabitCategory,
+} from "~/entities/models/habit";
 import { cn } from "~/lib/utils";
-import { FrequencyType } from "~/types/common/enums";
+import { FREQUENCY_OPTIONS } from "~/frameworks/next/types/ui/habit";
+
+// Constants for frequency types
+const FREQUENCY_MAP: Record<FrequencyType, string> = {
+  daily: "times per day",
+  weekly: "times per week",
+  monthly: "times per month",
+};
+
+// Constants for category icons
+const CATEGORY_ICONS: Record<HabitCategory, string> = {
+  mindfulness: "🧘‍♂️",
+  nutrition: "🥗",
+  fitness: "💪",
+  productivity: "📚",
+  other: "✨",
+};
 
 interface HabitCardProps {
   habit: Habit;
@@ -103,23 +123,27 @@ export function HabitCard({
   const isCompleted = habit.lastCompleted !== null;
 
   const getFrequencyText = () => {
-    switch (habit.frequencyType) {
-      case FrequencyType.Daily:
-        return "Daily";
-      case FrequencyType.Weekly:
-        if (habit.frequencyValue.days?.length) {
-          const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-          return `Weekly: ${habit.frequencyValue.days.map((day) => dayNames[day]).join(", ")}`;
-        }
-        return "Weekly";
-      case FrequencyType.Monthly:
-        return "Monthly";
-      default:
-        return "";
+    const frequencyText = FREQUENCY_MAP[habit.frequencyType as FrequencyType];
+
+    if (habit.frequencyType === "weekly" && habit.frequencyValue.days?.length) {
+      const dayNames = habit.frequencyValue.days
+        .map((day) => {
+          const date = new Date(0);
+          date.setDate(day);
+          return date.toLocaleDateString("en-US", { weekday: "long" });
+        })
+        .join(", ");
+      return `${habit.frequencyValue.times} ${frequencyText} on ${dayNames}`;
     }
+
+    return `${habit.frequencyValue.times} ${frequencyText}`;
   };
 
-  const categoryColors = {
+  const getCategoryIcon = () => {
+    return CATEGORY_ICONS[habit.category as HabitCategory];
+  };
+
+  const categoryColors: Record<HabitCategory, string> = {
     mindfulness: "text-blue-500",
     nutrition: "text-green-500",
     fitness: "text-red-500",
@@ -127,7 +151,7 @@ export function HabitCard({
     other: "text-gray-500",
   };
 
-  const bgColors = {
+  const bgColors: Record<HabitCategory, string> = {
     mindfulness: "bg-blue-50 dark:bg-blue-950/30",
     nutrition: "bg-green-50 dark:bg-green-950/30",
     fitness: "bg-red-50 dark:bg-red-950/30",
@@ -139,7 +163,7 @@ export function HabitCard({
     <Card
       className={cn(
         "group relative overflow-visible transition-all duration-300",
-        bgColors[habit.category]
+        bgColors[habit.category as HabitCategory]
       )}
     >
       <CardContent className="p-4">
@@ -157,10 +181,10 @@ export function HabitCard({
               <span
                 className={cn(
                   "text-sm font-medium",
-                  categoryColors[habit.category]
+                  categoryColors[habit.category as HabitCategory]
                 )}
               >
-                {habit.category}
+                {getCategoryIcon()}
               </span>
             </div>
 

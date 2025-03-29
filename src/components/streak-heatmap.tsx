@@ -13,15 +13,15 @@ import type {
   StreakHeatmapProps,
   HeatmapDayProps,
   HeatmapLegendProps,
-} from "~/types/chart";
-import { FrequencyType } from "~/types/common/enums";
+} from "~/frameworks/next/types/chart";
+import type { Habit, FrequencyType } from "~/entities/models/habit";
 
 const getIntensityClass = (percentage: number): string => {
   if (percentage === 0) return "bg-muted";
-  if (percentage <= 25) return "bg-primary/20";
-  if (percentage <= 50) return "bg-primary/40";
-  if (percentage <= 75) return "bg-primary/70";
-  return "bg-primary";
+  if (percentage < 0.25) return "bg-green-200 dark:bg-green-900";
+  if (percentage < 0.5) return "bg-green-300 dark:bg-green-800";
+  if (percentage < 0.75) return "bg-green-400 dark:bg-green-700";
+  return "bg-green-500 dark:bg-green-600";
 };
 
 const HeatmapDay = ({ day }: HeatmapDayProps) => (
@@ -66,6 +66,22 @@ const HeatmapLegend = ({ weeks }: HeatmapLegendProps) => (
   </div>
 );
 
+const shouldTrackHabit = (habit: Habit, date: Date): boolean => {
+  if (!habit.isActive || habit.isArchived) return false;
+
+  if (habit.frequencyType === "daily") return true;
+
+  if (habit.frequencyType === "weekly") {
+    return habit.frequencyValue.days?.includes(date.getDay()) ?? false;
+  }
+
+  if (habit.frequencyType === "monthly") {
+    return date.getDate() === 1;
+  }
+
+  return false;
+};
+
 export function StreakHeatmap({
   habits,
   habitLogs,
@@ -78,26 +94,10 @@ export function StreakHeatmap({
 
   // Calculate completion rate for each day
   const getDayCompletion = (date: Date): DayCompletion => {
-    // Create date range for the day
-    const dayStart = startOfDay(date);
-    const dayEnd = endOfDay(date);
-
     // Count active habits for this day
-    const activeHabits = habits.filter((habit) => {
-      if (!habit.isActive || habit.isArchived) return false;
-
-      if (habit.frequencyType === FrequencyType.Daily) return true;
-
-      if (habit.frequencyType === FrequencyType.Weekly) {
-        return habit.frequencyValue.days?.includes(date.getDay()) ?? false;
-      }
-
-      if (habit.frequencyType === FrequencyType.Monthly) {
-        return date.getDate() === 1;
-      }
-
-      return false;
-    }).length;
+    const activeHabits = habits.filter((habit) =>
+      shouldTrackHabit(habit, date)
+    ).length;
 
     // Count completed habits for this day
     const completedHabits = habits.filter((habit) =>
@@ -105,8 +105,8 @@ export function StreakHeatmap({
         const completedAt = new Date(log.completedAt);
         return (
           log.habitId === habit.id &&
-          completedAt >= dayStart &&
-          completedAt <= dayEnd
+          completedAt >= startOfDay(date) &&
+          completedAt <= endOfDay(date)
         );
       })
     ).length;

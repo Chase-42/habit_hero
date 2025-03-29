@@ -13,7 +13,10 @@ import type {
   HabitCategory,
   FrequencyType,
   HabitDetails,
-} from "~/types";
+  Habit,
+  HabitLog,
+  Goal,
+} from "~/entities/models";
 
 // Main habits table
 export const habits = singlestoreTable(
@@ -85,7 +88,10 @@ export const goals = singlestoreTable(
     userId: text("userId").notNull(),
     name: text("name").notNull(),
     description: text("description"),
-    notes: text("notes"),
+    target: int("target").notNull(),
+    progress: int("progress").notNull().default(0),
+    startDate: timestamp("startDate").notNull(),
+    endDate: timestamp("endDate").notNull(),
     isCompleted: boolean("isCompleted").notNull().default(false),
     createdAt: timestamp("createdAt").notNull().defaultNow(),
     updatedAt: timestamp("updatedAt").notNull().defaultNow(),

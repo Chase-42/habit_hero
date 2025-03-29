@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { Calendar, Clock, Target } from "lucide-react";
 import { format } from "date-fns";
 import { Progress } from "~/components/ui/progress";
-import type { Habit } from "~/types";
+import type { Habit, HabitCategory } from "~/entities/models";
 import { cn } from "~/lib/utils";
 
 interface HabitDetailsProps {
@@ -12,7 +12,7 @@ interface HabitDetailsProps {
 }
 
 export function HabitDetails({ habit }: HabitDetailsProps) {
-  const categoryColors = {
+  const categoryColors: Record<HabitCategory, string> = {
     mindfulness: "text-blue-500",
     nutrition: "text-green-500",
     fitness: "text-red-500",
@@ -20,7 +20,7 @@ export function HabitDetails({ habit }: HabitDetailsProps) {
     other: "text-gray-500",
   };
 
-  const bgColors = {
+  const bgColors: Record<HabitCategory, string> = {
     mindfulness: "bg-blue-50 dark:bg-blue-950/30",
     nutrition: "bg-green-50 dark:bg-green-950/30",
     fitness: "bg-red-50 dark:bg-red-950/30",
@@ -42,14 +42,17 @@ export function HabitDetails({ habit }: HabitDetailsProps) {
       <div
         className={cn(
           "mt-1 space-y-4 rounded-b-lg border-t p-4",
-          bgColors[habit.category]
+          bgColors[habit.category as HabitCategory]
         )}
       >
         <div className="grid gap-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Calendar
-                className={cn("h-4 w-4", categoryColors[habit.category])}
+                className={cn(
+                  "h-4 w-4",
+                  categoryColors[habit.category as HabitCategory]
+                )}
               />
               <div className="text-sm">
                 <span className="text-muted-foreground">Created </span>
@@ -59,7 +62,10 @@ export function HabitDetails({ habit }: HabitDetailsProps) {
 
             <div className="flex items-center gap-2">
               <Clock
-                className={cn("h-4 w-4", categoryColors[habit.category])}
+                className={cn(
+                  "h-4 w-4",
+                  categoryColors[habit.category as HabitCategory]
+                )}
               />
               <div className="text-sm">
                 <span className="text-muted-foreground">Longest streak </span>
@@ -73,7 +79,10 @@ export function HabitDetails({ habit }: HabitDetailsProps) {
               <div className="mb-2 flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2">
                   <Target
-                    className={cn("h-4 w-4", categoryColors[habit.category])}
+                    className={cn(
+                      "h-4 w-4",
+                      categoryColors[habit.category as HabitCategory]
+                    )}
                   />
                   <span>Goal Progress</span>
                 </div>

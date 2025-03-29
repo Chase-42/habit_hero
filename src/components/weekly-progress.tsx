@@ -10,10 +10,11 @@ import {
   CartesianGrid,
   type TooltipProps,
 } from "recharts";
-import type { Habit, HabitLog } from "~/types";
+import type { Habit } from "~/entities/models/habit";
+import type { HabitLog } from "~/entities/models/habit-log";
 import { subDays } from "date-fns";
 import { Card } from "~/components/ui/card";
-import { FrequencyType } from "~/types/common/enums";
+import { FREQUENCY_OPTIONS } from "~/frameworks/next/types/ui/habit";
 
 interface HabitMomentumData {
   name: string;
@@ -39,11 +40,15 @@ export function WeeklyProgress({ habits, habitLogs }: WeeklyProgressProps) {
       .map((habit) => {
         // Calculate total possible completions in the past week
         let totalPossible = 0;
-        if (habit.frequencyType === FrequencyType.Daily) {
+        const dailyOption = FREQUENCY_OPTIONS[0]?.value ?? "daily";
+        const weeklyOption = FREQUENCY_OPTIONS[1]?.value ?? "weekly";
+        const monthlyOption = FREQUENCY_OPTIONS[2]?.value ?? "monthly";
+
+        if (habit.frequencyType === dailyOption) {
           totalPossible = 7;
-        } else if (habit.frequencyType === FrequencyType.Weekly) {
+        } else if (habit.frequencyType === weeklyOption) {
           totalPossible = 1;
-        } else if (habit.frequencyType === FrequencyType.Monthly) {
+        } else if (habit.frequencyType === monthlyOption) {
           // Check if the 1st of the month was in the past week
           const firstOfMonth = new Date(
             today.getFullYear(),
@@ -57,7 +62,7 @@ export function WeeklyProgress({ habits, habitLogs }: WeeklyProgressProps) {
 
         // Count actual completions in the past week
         const completions = habitLogs.filter((log) => {
-          const completedAt = new Date(log.completedAt);
+          const completedAt = new Date(log.completedAt as string);
           return (
             log.habitId === habit.id &&
             completedAt >= weekAgo &&

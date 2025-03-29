@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
 import { ScrollArea } from "~/components/ui/scroll-area";
-import type { Habit, HabitLog } from "~/types";
+import type { Habit, HabitLog } from "~/entities/models/habit";
 
 export interface HabitCalendarProps {
   habits: Habit[];
