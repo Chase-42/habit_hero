@@ -15,8 +15,8 @@ export async function getGoalById(id: string): Promise<Goal | null> {
 
   return {
     ...goal,
-    description: goal.description ?? undefined,
-    notes: goal.notes ?? undefined,
+    description: goal.description ?? null,
+    notes: goal.notes ?? null,
   };
 }
 
@@ -37,8 +37,8 @@ export async function updateGoalById(
   const updatedGoal: Goal = {
     ...goal,
     ...updates,
-    description: updates.description ?? undefined,
-    notes: updates.notes ?? undefined,
+    description: updates.description ?? null,
+    notes: updates.notes ?? null,
     updatedAt: new Date(),
   };
 

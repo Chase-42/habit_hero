@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { getHabitById, updateHabit, deleteHabit } from "~/server/queries";
 import type { Habit } from "~/types";
 import type { RouteContext, RouteParams } from "~/types/route";
@@ -8,11 +9,20 @@ export async function GET(
   request: Request,
   context: RouteContext<Promise<RouteParams>>
 ): Promise<NextResponse<Habit | { error: string }>> {
+  const { userId } = await auth();
+
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const { id } = await context.params;
     const habit = await getHabitById(id);
-    if (!habit) {
-      return NextResponse.json({ error: "Habit not found" }, { status: 404 });
+    if (!habit || habit.userId !== userId) {
+      return NextResponse.json(
+        { error: "Habit not found or unauthorized" },
+        { status: 404 }
+      );
     }
     return NextResponse.json(habit);
   } catch (error) {
@@ -28,8 +38,22 @@ export async function PUT(
   request: Request,
   context: RouteContext<Promise<RouteParams>>
 ): Promise<NextResponse<Habit | { error: string }>> {
+  const { userId } = await auth();
+
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const { id } = await context.params;
+    const habit = await getHabitById(id);
+    if (!habit || habit.userId !== userId) {
+      return NextResponse.json(
+        { error: "Habit not found or unauthorized" },
+        { status: 404 }
+      );
+    }
+
     const input = updateHabitSchema.parse(await request.json());
     await updateHabit(id, input);
     const updatedHabit = await getHabitById(id);
@@ -53,18 +77,14 @@ export async function DELETE(
   request: Request,
   context: RouteContext<Promise<RouteParams>>
 ): Promise<NextResponse<{ success: true } | { error: string }>> {
+  const { userId } = await auth();
+
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const { id } = await context.params;
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get("userId");
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: "userId is required" },
-        { status: 400 }
-      );
-    }
-
     const habit = await getHabitById(id);
     if (!habit || habit.userId !== userId) {
       return NextResponse.json(

@@ -1,9 +1,5 @@
-import type {
-  FrequencyType,
-  FrequencyValue,
-  HabitColor,
-  HabitCategory,
-} from "./common";
+import type { FrequencyValue } from "./common";
+import type { HabitColor, HabitCategory, FrequencyType } from "./common/enums";
 
 export interface Habit {
   id: string;

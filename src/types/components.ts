@@ -22,8 +22,6 @@ export interface FormItemContextValue {
   id: string;
 }
 
-export interface FormFieldContextValue<
-  TFieldValues extends Record<string, unknown> = Record<string, unknown>,
-> {
+export interface FormFieldContextValue {
   name: string;
 }

@@ -15,6 +15,7 @@ import {
   AlertDialogTitle,
 } from "~/components/ui/alert-dialog";
 import type { Habit, HabitLog } from "~/types";
+import { toast } from "sonner";
 
 interface HabitListProps {
   habits: Habit[];
@@ -34,6 +35,7 @@ export function HabitList({
 }: HabitListProps) {
   const [expandedHabitId, setExpandedHabitId] = useState<string | null>(null);
   const [habitToDelete, setHabitToDelete] = useState<Habit | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const toggleExpand = (id: string) => {
     setExpandedHabitId((current) => (current === id ? null : id));
@@ -47,6 +49,21 @@ export function HabitList({
         log.habitId === habit.id &&
         new Date(log.completedAt).setHours(0, 0, 0, 0) === today.getTime()
     );
+  };
+
+  const handleDelete = async () => {
+    if (!habitToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      await onDelete(habitToDelete);
+      toast.success(`${habitToDelete.name} deleted successfully`);
+    } catch {
+      toast.error("Failed to delete habit. Please try again.");
+    } finally {
+      setIsDeleting(false);
+      setHabitToDelete(null);
+    }
   };
 
   return (
@@ -85,17 +102,20 @@ export function HabitList({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => {
-                if (habitToDelete) {
-                  void onDelete(habitToDelete);
-                  setHabitToDelete(null);
-                }
-              }}
+              onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isDeleting}
             >
-              Delete
+              {isDeleting ? (
+                <>
+                  <span className="mr-2">Deleting...</span>
+                  <span className="animate-spin">⏳</span>
+                </>
+              ) : (
+                "Delete"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

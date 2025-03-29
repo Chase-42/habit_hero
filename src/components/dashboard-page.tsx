@@ -1,11 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Calendar, Plus, Settings, ChevronRight } from "lucide-react";
-import Link from "next/link";
+import { Calendar } from "lucide-react";
 import { toast } from "sonner";
+import { useUser } from "@clerk/nextjs";
 
-import { Button } from "~/components/ui/button";
 import {
   Card,
   CardContent,
@@ -17,16 +16,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { AddHabitModal } from "~/components/add-habit-modal";
 import { HabitCalendar } from "~/components/habit-calendar";
 import { HabitList } from "~/components/habit-list";
-import { StatsCards } from "~/components/stats-cards";
 import { WeeklyProgress } from "~/components/weekly-progress";
 import { StreakHeatmap } from "~/components/streak-heatmap";
-import { ThemeToggle } from "~/components/theme-toggle";
+import { Header } from "~/components/header";
 import type { Habit, HabitLog } from "~/types";
+import { FrequencyType } from "~/types/common/enums";
 import {
   createHabit,
   fetchHabits,
   toggleHabit,
-  fetchTodaysLogs,
   fetchHabitLogs,
 } from "~/lib/api-client";
 
@@ -36,12 +34,12 @@ type NewHabit = Omit<
 >;
 
 export function DashboardPage() {
+  const { user } = useUser();
   const [habits, setHabits] = useState<Habit[]>([]);
   const [habitLogs, setHabitLogs] = useState<HabitLog[]>([]);
   const [isAddHabitOpen, setIsAddHabitOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const userId = "user123"; // TODO: Get from auth
 
   const addHabit = async (newHabit: NewHabit) => {
     try {
@@ -59,12 +57,14 @@ export function DashboardPage() {
 
   // Load initial habits
   useEffect(() => {
+    if (!user?.id) return;
+
     const loadHabits = async () => {
       setIsLoading(true);
       setError(null);
 
       try {
-        const habits = await fetchHabits(userId);
+        const habits = await fetchHabits(user.id);
         setHabits(habits);
 
         // Load logs for the past 84 days for all habits
@@ -89,13 +89,18 @@ export function DashboardPage() {
     };
 
     void loadHabits();
-  }, [userId]);
+  }, [user?.id]);
 
   const handleDeleteHabit = async (habit: Habit) => {
+    if (!user?.id) return;
+
     try {
-      const response = await fetch(`/api/habits/${habit.id}?userId=${userId}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `/api/habits/${habit.id}?userId=${user.id}`,
+        {
+          method: "DELETE",
+        }
+      );
 
       if (!response.ok) {
         throw new Error("Failed to delete habit");
@@ -208,14 +213,14 @@ export function DashboardPage() {
     return habits.filter((habit) => {
       if (!habit.isActive || habit.isArchived) return false;
 
-      if (habit.frequencyType === "daily") return true;
+      if (habit.frequencyType === FrequencyType.Daily) return true;
 
-      if (habit.frequencyType === "weekly") {
+      if (habit.frequencyType === FrequencyType.Weekly) {
         return habit.frequencyValue.days?.includes(today) ?? false;
       }
 
       // For monthly habits, show them on the 1st of each month
-      if (habit.frequencyType === "monthly") {
+      if (habit.frequencyType === FrequencyType.Monthly) {
         return new Date().getDate() === 1;
       }
 
@@ -225,38 +230,10 @@ export function DashboardPage() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-10 border-b bg-background">
-        <div className="container flex h-16 items-center justify-between py-4">
-          <div className="flex items-center gap-2">
-            <Link href="/" className="text-2xl font-bold hover:text-primary">
-              HabitHero
-            </Link>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <ChevronRight className="h-4 w-4" />
-              <Link href="/dashboard" className="hover:text-foreground">
-                Dashboard
-              </Link>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={() => setIsAddHabitOpen(true)}
-              disabled={isLoading}
-              size="sm"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add Habit
-            </Button>
-            <ThemeToggle />
-            <Link href="/settings">
-              <Button variant="ghost" size="icon">
-                <Settings className="h-5 w-5" />
-                <span className="sr-only">Settings</span>
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </header>
+      <Header
+        onAddHabit={() => setIsAddHabitOpen(true)}
+        isLoading={isLoading}
+      />
 
       <main className="flex-1">
         <div className="container py-6">
@@ -272,7 +249,20 @@ export function DashboardPage() {
             </div>
           ) : (
             <>
-              <StatsCards habits={habits} habitLogs={habitLogs} />
+              <div className="flex items-center justify-between space-y-2">
+                <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
+                <div className="flex items-center space-x-2">
+                  <Calendar className="h-4 w-4" />
+                  <span className="text-sm text-muted-foreground">
+                    {new Date().toLocaleDateString("en-US", {
+                      weekday: "long",
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                  </span>
+                </div>
+              </div>
 
               <Tabs defaultValue="overview" className="mt-6">
                 <TabsList>
@@ -280,6 +270,7 @@ export function DashboardPage() {
                   <TabsTrigger value="habits">My Habits</TabsTrigger>
                   <TabsTrigger value="calendar">Calendar</TabsTrigger>
                 </TabsList>
+
                 <TabsContent value="overview" className="space-y-4">
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
                     <Card className="lg:col-span-4">
@@ -320,11 +311,12 @@ export function DashboardPage() {
                         habitLogs={habitLogs}
                         onComplete={handleCompleteHabit}
                         onDelete={handleDeleteHabit}
-                        userId={userId}
+                        userId={user?.id ?? ""}
                       />
                     </CardContent>
                   </Card>
                 </TabsContent>
+
                 <TabsContent value="habits">
                   <Card>
                     <CardHeader>
@@ -337,12 +329,12 @@ export function DashboardPage() {
                         habitLogs={habitLogs}
                         onComplete={handleCompleteHabit}
                         onDelete={handleDeleteHabit}
-                        showAll
-                        userId={userId}
+                        userId={user?.id ?? ""}
                       />
                     </CardContent>
                   </Card>
                 </TabsContent>
+
                 <TabsContent value="calendar">
                   <Card>
                     <CardHeader className="flex flex-row items-center">
@@ -369,7 +361,7 @@ export function DashboardPage() {
         open={isAddHabitOpen}
         onOpenChange={setIsAddHabitOpen}
         onAddHabit={addHabit}
-        userId={userId}
+        userId={user?.id ?? ""}
       />
     </div>
   );
