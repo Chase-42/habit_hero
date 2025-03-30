@@ -108,7 +108,8 @@ export function WeeklyProgress({ habits, habitLogs }: WeeklyProgressProps) {
         <BarChart
           data={data}
           layout="vertical"
-          margin={{ top: 10, right: 10, left: 120, bottom: 0 }}
+          margin={{ top: 10, right: 30, left: 10, bottom: 10 }}
+          barSize={20}
         >
           <CartesianGrid
             strokeDasharray="3 3"
@@ -122,6 +123,7 @@ export function WeeklyProgress({ habits, habitLogs }: WeeklyProgressProps) {
             axisLine={false}
             tickLine={false}
             className="text-xs font-medium"
+            padding={{ left: 0, right: 0 }}
           />
           <YAxis
             type="category"
@@ -129,18 +131,14 @@ export function WeeklyProgress({ habits, habitLogs }: WeeklyProgressProps) {
             axisLine={false}
             tickLine={false}
             className="text-xs font-medium"
-            width={110}
+            width={100}
+            dx={-10}
           />
           <Tooltip
             content={<CustomTooltip />}
             cursor={{ fill: "transparent" }}
           />
-          <Bar
-            dataKey="completionRate"
-            fill="hsl(var(--primary))"
-            radius={[0, 4, 4, 0]}
-            className="fill-primary"
-          />
+          <Bar dataKey="completionRate" fill="#22c55e" radius={[0, 4, 4, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>
