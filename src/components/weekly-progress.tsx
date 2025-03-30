@@ -23,63 +23,51 @@ interface HabitMomentumData {
   completed: number;
 }
 
-export interface WeeklyProgressProps {
+interface WeeklyProgressProps {
   habits: Habit[];
   habitLogs: HabitLog[];
 }
 
 export function WeeklyProgress({ habits, habitLogs }: WeeklyProgressProps) {
   // Get momentum data for each habit
-  const getMomentumData = (): HabitMomentumData[] => {
-    const today = new Date();
-    const weekAgo = subDays(today, 7);
+  const data: HabitMomentumData[] = habits
+    .filter((habit) => habit.isActive && !habit.isArchived)
+    .map((habit) => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
-    return habits
-      .filter((habit) => habit.isActive && !habit.isArchived)
-      .map((habit) => {
-        // Calculate total possible completions in the past week
-        let totalPossible = 0;
-        if (habit.frequencyType === FrequencyType.Daily) {
-          totalPossible = 7;
-        } else if (habit.frequencyType === FrequencyType.Weekly) {
-          totalPossible = 1;
-        } else if (habit.frequencyType === FrequencyType.Monthly) {
-          // Check if the 1st of the month was in the past week
-          const firstOfMonth = new Date(
-            today.getFullYear(),
-            today.getMonth(),
-            1
-          );
-          if (firstOfMonth >= weekAgo && firstOfMonth <= today) {
-            totalPossible = 1;
-          }
-        }
-
-        // Count actual completions in the past week
-        const completions = habitLogs.filter((log) => {
-          const completedAt = new Date(log.completedAt);
-          return (
-            log.habitId === habit.id &&
-            completedAt >= weekAgo &&
-            completedAt <= today
-          );
-        }).length;
-
-        return {
-          name: habit.name,
-          streak: habit.streak,
-          completionRate:
-            totalPossible > 0 ? (completions / totalPossible) * 100 : 0,
-          total: totalPossible,
-          completed: completions,
-        };
-      })
-      .sort(
-        (a, b) => b.streak - a.streak || b.completionRate - a.completionRate
+      // Get logs for the past week
+      const weekAgo = subDays(today, 7);
+      const habitLogsForWeek = habitLogs.filter(
+        (log) =>
+          log.habitId === habit.id &&
+          new Date(log.completedAt) >= weekAgo &&
+          new Date(log.completedAt) <= today
       );
-  };
 
-  const data = getMomentumData();
+      // Calculate expected completions based on frequency
+      let expectedCompletions = 0;
+      if (habit.frequencyType === FrequencyType.Daily) {
+        expectedCompletions = 7;
+      } else if (habit.frequencyType === FrequencyType.Weekly) {
+        expectedCompletions = habit.frequencyValue.days?.length ?? 0;
+      }
+
+      const completionRate =
+        expectedCompletions > 0
+          ? (habitLogsForWeek.length / expectedCompletions) * 100
+          : 0;
+
+      return {
+        name: habit.name,
+        streak: habit.streak || 0,
+        completionRate,
+        total: expectedCompletions,
+        completed: habitLogsForWeek.length,
+      };
+    })
+    .sort((a, b) => b.completionRate - a.completionRate)
+    .slice(0, 5); // Show top 5 habits
 
   const CustomTooltip = ({ active, payload }: TooltipProps<number, string>) => {
     if (active && payload && payload.length > 0 && payload[0]?.payload) {
@@ -110,11 +98,12 @@ export function WeeklyProgress({ habits, habitLogs }: WeeklyProgressProps) {
           layout="vertical"
           margin={{ top: 10, right: 30, left: 10, bottom: 10 }}
           barSize={20}
+          className="[&_.recharts-cartesian-axis-line]:stroke-border [&_.recharts-cartesian-axis-tick-line]:stroke-border [&_.recharts-cartesian-axis-tick-value]:fill-muted-foreground [&_.recharts-cartesian-grid-horizontal]:stroke-border [&_.recharts-cartesian-grid-vertical]:stroke-border"
         >
           <CartesianGrid
             strokeDasharray="3 3"
-            className="stroke-muted"
             horizontal={false}
+            className="stroke-muted/30"
           />
           <XAxis
             type="number"
@@ -131,14 +120,25 @@ export function WeeklyProgress({ habits, habitLogs }: WeeklyProgressProps) {
             axisLine={false}
             tickLine={false}
             className="text-xs font-medium"
-            width={100}
+            width={120}
             dx={-10}
           />
           <Tooltip
             content={<CustomTooltip />}
-            cursor={{ fill: "transparent" }}
+            cursor={{ fill: "var(--muted)", opacity: 0.2 }}
           />
-          <Bar dataKey="completionRate" fill="#22c55e" radius={[0, 4, 4, 0]} />
+          <Bar
+            dataKey="completionRate"
+            className="fill-primary"
+            radius={[0, 4, 4, 0]}
+            animationDuration={1000}
+            animationBegin={0}
+            label={{
+              position: "right",
+              formatter: (value: number) => `${value.toFixed(0)}%`,
+              className: "text-xs font-medium fill-muted-foreground",
+            }}
+          />
         </BarChart>
       </ResponsiveContainer>
     </div>

@@ -26,61 +26,51 @@ export function StatsCards({ habits, habitLogs }: StatsCardsProps) {
   });
 
   useEffect(() => {
-    const calculateStats = () => {
-      const today = new Date().toISOString().split("T")[0];
-      if (!today) return;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-      // Count active habits
-      const activeHabits = habits.filter(
-        (habit) => habit.isActive && !habit.isArchived
-      );
+    const activeHabits = habits.filter((h) => h.isActive && !h.isArchived);
+    const completedToday = activeHabits.filter(
+      (h) =>
+        h.lastCompleted &&
+        new Date(h.lastCompleted).setHours(0, 0, 0, 0) === today.getTime()
+    ).length;
 
-      // Count habits completed today
-      const completedToday = activeHabits.filter((habit) =>
-        habitLogs.some((log) => {
-          const completedAt = new Date(log.completedAt);
-          const logDate = completedAt.toISOString().split("T")[0];
-          return log.habitId === habit.id && logDate === today;
-        })
-      ).length;
+    // Calculate completion rate for the last 7 days
+    const last7Days = Array.from({ length: 7 }, (_, i) => {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      date.setHours(0, 0, 0, 0);
+      return date.getTime();
+    });
 
-      // Calculate completion rate for the past week
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      const weekAgoStr = weekAgo.toISOString().split("T")[0];
-      if (!weekAgoStr) return;
+    const totalPossibleCompletions = activeHabits.length * 7;
+    const actualCompletions = habitLogs.filter((log) =>
+      last7Days.includes(new Date(log.completedAt).setHours(0, 0, 0, 0))
+    ).length;
 
-      const recentLogs = habitLogs.filter((log) => {
-        const completedAt = new Date(log.completedAt);
-        const logDate = completedAt.toISOString().split("T")[0];
-        return logDate && logDate >= weekAgoStr;
-      });
+    const completionRate =
+      totalPossibleCompletions > 0
+        ? (actualCompletions / totalPossibleCompletions) * 100
+        : 0;
 
-      const completionRate =
-        activeHabits.length > 0
-          ? Math.round((recentLogs.length / (activeHabits.length * 7)) * 100)
-          : 0;
+    // Find the longest current streak
+    const currentStreak = Math.max(
+      0,
+      ...activeHabits.map((h) => h.streak || 0)
+    );
 
-      // Get the highest streak from habits
-      const currentStreak = Math.max(
-        0,
-        ...activeHabits.map((habit) => habit.streak)
-      );
-
-      setStats({
-        totalHabits: activeHabits.length,
-        completedToday,
-        currentStreak,
-        completionRate,
-      });
-    };
-
-    calculateStats();
+    setStats({
+      totalHabits: activeHabits.length,
+      completedToday,
+      currentStreak,
+      completionRate,
+    });
   }, [habits, habitLogs]);
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      <Card>
+      <Card className="transition-all hover:shadow-md">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Total Habits</CardTitle>
           <Target className="h-4 w-4 text-muted-foreground" />
@@ -90,36 +80,62 @@ export function StatsCards({ habits, habitLogs }: StatsCardsProps) {
           <p className="text-xs text-muted-foreground">Active habits</p>
         </CardContent>
       </Card>
-      <Card>
+
+      <Card className="transition-all hover:shadow-md">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Completed Today</CardTitle>
           <Activity className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{stats.completedToday}</div>
-          <p className="text-xs text-muted-foreground">
-            Out of {stats.totalHabits} habits
+          <div className="text-2xl font-bold">
+            {stats.completedToday} / {stats.totalHabits}
+          </div>
+          <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full bg-primary transition-all duration-500 ease-in-out"
+              style={{
+                width: `${(stats.completedToday / stats.totalHabits) * 100}%`,
+              }}
+            />
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            {((stats.completedToday / stats.totalHabits) * 100).toFixed(0)}%
+            complete
           </p>
         </CardContent>
       </Card>
-      <Card>
+
+      <Card className="transition-all hover:shadow-md">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Current Streak</CardTitle>
           <Trophy className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{stats.currentStreak}</div>
-          <p className="text-xs text-muted-foreground">Days in a row</p>
+          <p className="text-xs text-muted-foreground">
+            {stats.currentStreak === 1 ? "day" : "days"} in a row
+          </p>
         </CardContent>
       </Card>
-      <Card>
+
+      <Card className="transition-all hover:shadow-md">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Completion Rate</CardTitle>
+          <CardTitle className="text-sm font-medium">Weekly Progress</CardTitle>
           <Calendar className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{stats.completionRate}%</div>
-          <p className="text-xs text-muted-foreground">Over the past week</p>
+          <div className="text-2xl font-bold">
+            {stats.completionRate.toFixed(0)}%
+          </div>
+          <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full bg-primary transition-all duration-500 ease-in-out"
+              style={{ width: `${stats.completionRate}%` }}
+            />
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Last 7 days completion rate
+          </p>
         </CardContent>
       </Card>
     </div>
