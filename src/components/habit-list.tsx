@@ -17,10 +17,10 @@ import type { Habit, HabitLog } from "~/types";
 import { toast } from "sonner";
 
 // Types
-interface HabitListProps {
+export interface HabitListProps {
   habits: Habit[];
   habitLogs: HabitLog[];
-  onComplete: (habit: Habit) => void;
+  onComplete: (habit: Habit) => Promise<void>;
   onDelete: (habit: Habit) => Promise<void>;
   onEdit?: (habit: Habit) => void;
   onArchive?: (habit: Habit) => void;
@@ -28,6 +28,8 @@ interface HabitListProps {
   onViewStats?: (habit: Habit) => void;
   showAll?: boolean;
   userId: string;
+  completingHabits?: Set<string>;
+  deletingHabits?: Set<string>;
 }
 
 // Components
@@ -100,6 +102,9 @@ export function HabitList({
   onToggleReminder,
   onViewStats,
   showAll = false,
+  userId,
+  completingHabits = new Set(),
+  deletingHabits = new Set(),
 }: HabitListProps) {
   const [expandedHabitId, setExpandedHabitId] = useState<string | null>(null);
   const [habitToDelete, setHabitToDelete] = useState<Habit | null>(null);
@@ -147,6 +152,8 @@ export function HabitList({
                   onToggleReminder ? () => onToggleReminder(habit) : undefined
                 }
                 onViewStats={onViewStats ? () => onViewStats(habit) : undefined}
+                isLoading={completingHabits.has(habit.id)}
+                isDeleting={deletingHabits.has(habit.id)}
               />
             </div>
           ))}

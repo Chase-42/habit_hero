@@ -19,6 +19,7 @@ import {
   DialogTitle,
 } from "~/components/ui/dialog";
 import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
 import {
   Popover,
   PopoverContent,
@@ -29,8 +30,10 @@ import { cn } from "~/lib/utils";
 import { Checkbox } from "~/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group";
 import { TimePicker } from "~/components/time-picker";
-import type { NewHabit, Category, Frequency, Day, Color } from "~/types/form";
+import { toast } from "sonner";
+import type { Habit } from "~/types";
 import { HabitCategory, FrequencyType, HabitColor } from "~/types/common/enums";
+import type { Day } from "~/types/form";
 import {
   Select,
   SelectContent,
@@ -39,18 +42,46 @@ import {
   SelectValue,
 } from "~/components/ui/select";
 
-const categories: Category[] = [
-  { label: "Fitness", value: HabitCategory.Fitness },
-  { label: "Nutrition", value: HabitCategory.Nutrition },
-  { label: "Mindfulness", value: HabitCategory.Mindfulness },
-  { label: "Productivity", value: HabitCategory.Productivity },
-  { label: "Other", value: HabitCategory.Other },
+type NewHabit = Omit<
+  Habit,
+  "id" | "createdAt" | "updatedAt" | "streak" | "longestStreak"
+>;
+
+interface AddHabitModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onAddHabit: (habit: NewHabit) => Promise<Habit | void>;
+  userId: string;
+}
+
+interface CategoryOption {
+  value: HabitCategory;
+  label: string;
+}
+
+interface FrequencyOption {
+  value: FrequencyType;
+  label: string;
+}
+
+interface ColorOption {
+  value: HabitColor;
+  label: string;
+  class: string;
+}
+
+const categories: CategoryOption[] = [
+  { value: HabitCategory.Fitness, label: "Fitness" },
+  { value: HabitCategory.Nutrition, label: "Nutrition" },
+  { value: HabitCategory.Mindfulness, label: "Mindfulness" },
+  { value: HabitCategory.Productivity, label: "Productivity" },
+  { value: HabitCategory.Other, label: "Other" },
 ];
 
-const frequencies: Frequency[] = [
-  { label: "Daily", value: FrequencyType.Daily },
-  { label: "Weekly", value: FrequencyType.Weekly },
-  { label: "Monthly", value: FrequencyType.Monthly },
+const frequencies: FrequencyOption[] = [
+  { value: FrequencyType.Daily, label: "Daily" },
+  { value: FrequencyType.Weekly, label: "Weekly" },
+  { value: FrequencyType.Monthly, label: "Monthly" },
 ];
 
 const days: Day[] = [
@@ -63,40 +94,30 @@ const days: Day[] = [
   { label: "Saturday", value: 6 },
 ];
 
-const colors: Color[] = [
-  { label: "Red", value: HabitColor.Red, class: "bg-red-500" },
-  { label: "Green", value: HabitColor.Green, class: "bg-green-500" },
-  { label: "Blue", value: HabitColor.Blue, class: "bg-blue-500" },
-  { label: "Yellow", value: HabitColor.Yellow, class: "bg-yellow-500" },
-  { label: "Purple", value: HabitColor.Purple, class: "bg-purple-500" },
-  { label: "Pink", value: HabitColor.Pink, class: "bg-pink-500" },
-  { label: "Orange", value: HabitColor.Orange, class: "bg-orange-500" },
+const colors: ColorOption[] = [
+  { value: HabitColor.Red, label: "Red", class: "bg-red-500" },
+  { value: HabitColor.Blue, label: "Blue", class: "bg-blue-500" },
+  { value: HabitColor.Green, label: "Green", class: "bg-green-500" },
+  { value: HabitColor.Purple, label: "Purple", class: "bg-purple-500" },
+  { value: HabitColor.Orange, label: "Orange", class: "bg-orange-500" },
 ];
-
-interface AddHabitModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  userId: string;
-  onAddHabit: (habit: NewHabit) => Promise<void>;
-  isLoading?: boolean;
-}
 
 export function AddHabitModal({
   open,
   onOpenChange,
-  userId,
   onAddHabit,
+  userId,
 }: AddHabitModalProps) {
   const [name, setName] = useState("");
-  const [category, setCategory] = useState<Category["value"]>(
+  const [category, setCategory] = useState<CategoryOption["value"]>(
     HabitCategory.Other
   );
-  const [frequencyType, setFrequencyType] = useState<Frequency["value"]>(
+  const [frequencyType, setFrequencyType] = useState<FrequencyOption["value"]>(
     FrequencyType.Daily
   );
   const [selectedDays, setSelectedDays] = useState<number[]>([]);
   const [timesPerFrequency, setTimesPerFrequency] = useState(1);
-  const [color, setColor] = useState<Color["value"]>(HabitColor.Blue);
+  const [color, setColor] = useState<ColorOption["value"]>(HabitColor.Blue);
   const [reminderTime, setReminderTime] = useState<string | undefined>();
   const [goal, setGoal] = useState<number | null>(null);
   const [notes, setNotes] = useState<string | null>(null);
@@ -236,7 +257,7 @@ export function AddHabitModal({
             <label className="text-sm font-medium">Frequency</label>
             <RadioGroup
               value={frequencyType}
-              onValueChange={(value: Frequency["value"]) =>
+              onValueChange={(value: FrequencyOption["value"]) =>
                 setFrequencyType(value)
               }
               className="flex flex-col space-y-1"
