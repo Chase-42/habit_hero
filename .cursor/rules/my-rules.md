@@ -363,3 +363,20 @@ src/
 3. Implement dependency injection for repositories and services
 4. Create presenters for data transformation
 5. Move business logic to use cases
+
+## Task Focus and Code Modification
+
+# Stay On Task
+
+- Only modify code directly related to the current task
+- Do not "improve" or change unrelated components/features
+- If you notice issues outside the current task scope, note them but do not fix them
+- Ask for explicit permission before touching any UI/design that works
+- Never change working functionality unless specifically requested
+
+# Before Making Changes
+
+- Confirm the specific scope of the requested changes
+- Double check that each modification is actually needed for the current task
+- If unsure whether something should be changed, ask first
+- Preserve existing behavior and styling unless explicitly told to change it

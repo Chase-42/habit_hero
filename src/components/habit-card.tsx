@@ -15,9 +15,6 @@ import {
   Calendar,
   Trophy,
   Target,
-  Check,
-  Flame,
-  MoreVertical,
 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { Card, CardContent } from "~/components/ui/card";
@@ -32,7 +29,6 @@ import {
 import type { Habit } from "~/types";
 import { cn } from "~/lib/utils";
 import { FrequencyType } from "~/types/common/enums";
-import { Badge } from "~/components/ui/badge";
 
 // Types
 type HabitCategory =
@@ -42,18 +38,16 @@ type HabitCategory =
   | "productivity"
   | "other";
 
-export interface HabitCardProps {
+interface HabitCardProps {
   habit: Habit;
-  onToggleComplete: (habit: Habit) => Promise<void>;
-  onDelete?: (habit: Habit) => Promise<void>;
-  onExpand?: (habit: Habit) => void;
-  isExpanded?: boolean;
-  onEdit?: (habit: Habit) => void;
-  onArchive?: (habit: Habit) => void;
-  onToggleReminder?: (habit: Habit) => void;
-  onViewStats?: (habit: Habit) => void;
-  isLoading?: boolean;
-  isDeleting?: boolean;
+  onToggleComplete: () => void;
+  onDelete: () => void;
+  onExpand: () => void;
+  isExpanded: boolean;
+  onEdit?: () => void;
+  onArchive?: () => void;
+  onToggleReminder?: () => void;
+  onViewStats?: () => void;
 }
 
 // Constants
@@ -204,8 +198,6 @@ export function HabitCard({
   onArchive,
   onToggleReminder,
   onViewStats,
-  isLoading = false,
-  isDeleting = false,
 }: HabitCardProps) {
   const isCompleted = habit.lastCompleted !== null;
 
@@ -259,60 +251,33 @@ export function HabitCard({
           </div>
 
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="icon"
-              className={cn(
-                "h-8 w-8 shrink-0",
-                isCompleted &&
-                  "bg-primary text-primary-foreground hover:bg-primary/90"
-              )}
-              onClick={() => onToggleComplete(habit)}
-              disabled={isLoading || isDeleting}
-            >
-              {isLoading ? (
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-              ) : (
-                <Check className="h-4 w-4" />
-              )}
-              <span className="sr-only">
-                {isCompleted ? "Mark as incomplete" : "Mark as complete"}
-              </span>
-            </Button>
+            <CompletionButton
+              isCompleted={isCompleted}
+              onClick={onToggleComplete}
+            />
 
             <div className="flex">
-              {onExpand && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => onExpand(habit)}
-                >
-                  {isExpanded ? (
-                    <ChevronUp className="h-4 w-4" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4" />
-                  )}
-                  <span className="sr-only">
-                    {isExpanded ? "Show less" : "Show more"}
-                  </span>
-                </Button>
-              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                className={ICON_BUTTON_STYLES}
+                onClick={onExpand}
+              >
+                {isExpanded ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
+              </Button>
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8"
-                    disabled={isDeleting}
+                    className={ICON_BUTTON_STYLES}
                   >
-                    {isDeleting ? (
-                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                    ) : (
-                      <MoreVertical className="h-4 w-4" />
-                    )}
-                    <span className="sr-only">Open menu</span>
+                    <MoreHorizontal className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
@@ -321,9 +286,8 @@ export function HabitCard({
                 >
                   {onEdit && (
                     <DropdownMenuItem
-                      onClick={() => onEdit(habit)}
+                      onClick={onEdit}
                       className={DROPDOWN_ITEM_STYLES}
-                      disabled={isDeleting}
                     >
                       <Edit className="h-4 w-4" />
                       Edit
@@ -331,9 +295,8 @@ export function HabitCard({
                   )}
                   {onArchive && (
                     <DropdownMenuItem
-                      onClick={() => onArchive(habit)}
+                      onClick={onArchive}
                       className={DROPDOWN_ITEM_STYLES}
-                      disabled={isDeleting}
                     >
                       <Archive className="h-4 w-4" />
                       Archive
@@ -341,9 +304,8 @@ export function HabitCard({
                   )}
                   {onToggleReminder && (
                     <DropdownMenuItem
-                      onClick={() => onToggleReminder(habit)}
+                      onClick={onToggleReminder}
                       className={DROPDOWN_ITEM_STYLES}
-                      disabled={isDeleting}
                     >
                       {habit.reminder ? (
                         <>
@@ -360,30 +322,21 @@ export function HabitCard({
                   )}
                   {onViewStats && (
                     <DropdownMenuItem
-                      onClick={() => onViewStats(habit)}
+                      onClick={onViewStats}
                       className={DROPDOWN_ITEM_STYLES}
-                      disabled={isDeleting}
                     >
                       <BarChart2 className="h-4 w-4" />
                       View Stats
                     </DropdownMenuItem>
                   )}
-                  {onDelete && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={() => onDelete(habit)}
-                        className={cn(
-                          DROPDOWN_ITEM_STYLES,
-                          "text-destructive hover:!text-destructive"
-                        )}
-                        disabled={isDeleting}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        Delete
-                      </DropdownMenuItem>
-                    </>
-                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={onDelete}
+                    className={cn(DROPDOWN_ITEM_STYLES, "text-red-500")}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
