@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle2,
@@ -8,9 +7,16 @@ import {
   ChevronUp,
   MoreHorizontal,
   Trash2,
+  Edit,
+  Archive,
+  Bell,
+  BellOff,
+  BarChart2,
+  Calendar,
+  Trophy,
+  Target,
 } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
-
+import { formatDistanceToNow, format } from "date-fns";
 import { Card, CardContent } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import {
@@ -18,10 +24,19 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "~/components/ui/dropdown-menu";
 import type { Habit } from "~/types";
 import { cn } from "~/lib/utils";
 import { FrequencyType } from "~/types/common/enums";
+
+// Types
+type HabitCategory =
+  | "mindfulness"
+  | "nutrition"
+  | "fitness"
+  | "productivity"
+  | "other";
 
 interface HabitCardProps {
   habit: Habit;
@@ -29,117 +44,168 @@ interface HabitCardProps {
   onDelete: () => void;
   onExpand: () => void;
   isExpanded: boolean;
+  onEdit?: () => void;
+  onArchive?: () => void;
+  onToggleReminder?: () => void;
+  onViewStats?: () => void;
 }
 
+// Constants
+const ICON_BUTTON_STYLES = "h-8 w-8 hover:bg-zinc-100 dark:hover:bg-zinc-800";
+const DROPDOWN_ITEM_STYLES =
+  "flex cursor-pointer items-center gap-2 rounded-sm px-3 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800";
+
+const CATEGORY_STYLES: Record<HabitCategory, { text: string; bg: string }> = {
+  mindfulness: { text: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-950/30" },
+  nutrition: { text: "text-green-500", bg: "bg-green-50 dark:bg-green-950/30" },
+  fitness: { text: "text-red-500", bg: "bg-red-50 dark:bg-red-950/30" },
+  productivity: {
+    text: "text-purple-500",
+    bg: "bg-purple-50 dark:bg-purple-950/30",
+  },
+  other: { text: "text-gray-500", bg: "bg-gray-50 dark:bg-gray-950/30" },
+};
+
+const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+
+// Components
 const CompletionButton = ({
   isCompleted,
   onClick,
 }: {
   isCompleted: boolean;
   onClick: () => void;
-}) => {
-  const [isAnimating, setIsAnimating] = useState(false);
-
-  const handleClick = () => {
-    if (!isCompleted) {
-      setIsAnimating(true);
-      setTimeout(() => setIsAnimating(false), 600);
-    }
-    onClick();
-  };
-
-  return (
-    <motion.button
-      className={cn(
-        "relative flex h-10 w-10 items-center justify-center rounded-full transition-colors",
-        isCompleted
-          ? "bg-green-500 text-white"
-          : "bg-muted text-muted-foreground hover:bg-muted/80"
-      )}
-      onClick={handleClick}
-      whileTap={{ scale: 0.9 }}
-    >
-      <AnimatePresence mode="wait">
-        {isCompleted ? (
-          <motion.div
-            key="check"
-            initial={{ scale: 0, rotate: -90 }}
-            animate={{ scale: 1, rotate: 0 }}
-            exit={{ scale: 0, rotate: 90 }}
-            transition={{ type: "spring", duration: 0.5 }}
-          >
-            <CheckCircle2 className="h-5 w-5" />
-          </motion.div>
-        ) : (
-          <motion.div
-            key="circle"
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            exit={{ scale: 0 }}
-            className="h-5 w-5 rounded-full border-2 border-current"
-          />
-        )}
-      </AnimatePresence>
-
-      {isAnimating && (
+}) => (
+  <motion.button
+    className={cn(
+      "relative flex h-10 w-10 items-center justify-center rounded-full transition-colors",
+      isCompleted
+        ? "bg-green-500 text-white"
+        : "bg-muted text-muted-foreground hover:bg-muted/80"
+    )}
+    onClick={onClick}
+    whileTap={{ scale: 0.9 }}
+  >
+    <AnimatePresence mode="wait">
+      {isCompleted ? (
         <motion.div
-          className="absolute inset-0 rounded-full bg-green-500"
-          initial={{ scale: 0.8, opacity: 0.5 }}
-          animate={{ scale: 1.4, opacity: 0 }}
-          transition={{ duration: 0.4 }}
+          key="check"
+          initial={{ scale: 0, rotate: -90 }}
+          animate={{ scale: 1, rotate: 0 }}
+          exit={{ scale: 0, rotate: 90 }}
+          transition={{ type: "spring", duration: 0.5 }}
+        >
+          <CheckCircle2 className="h-5 w-5" />
+        </motion.div>
+      ) : (
+        <motion.div
+          key="circle"
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          exit={{ scale: 0 }}
+          className="h-5 w-5 rounded-full border-2 border-current"
         />
       )}
-    </motion.button>
-  );
+    </AnimatePresence>
+
+    <motion.div
+      className="absolute inset-0 rounded-full bg-green-500"
+      initial={false}
+      animate={isCompleted ? { scale: [0.8, 1.4], opacity: [0.5, 0] } : {}}
+      transition={{ duration: 0.4 }}
+    />
+  </motion.button>
+);
+
+const ExpandedContent = ({ habit }: { habit: Habit }) => (
+  <div className="mt-4 space-y-3 border-t border-border/50 pt-4">
+    <div className="grid grid-cols-2 gap-3">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Calendar className="h-4 w-4" />
+        <span>Created {format(new Date(habit.createdAt), "MMM d, yyyy")}</span>
+      </div>
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Trophy className="h-4 w-4" />
+        <span>Longest streak {habit.longestStreak} days</span>
+      </div>
+    </div>
+
+    {habit.goal && (
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between text-sm">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Target className="h-4 w-4" />
+            <span>Goal Progress</span>
+          </div>
+          <span className="font-medium">
+            {habit.streak} / {habit.goal} days
+          </span>
+        </div>
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full rounded-full bg-green-500 transition-all duration-300"
+            style={{
+              width: `${Math.min(100, (habit.streak / habit.goal) * 100)}%`,
+            }}
+          />
+        </div>
+      </div>
+    )}
+
+    {habit.notes && (
+      <div className="space-y-1">
+        <div className="flex items-center gap-2 text-sm">
+          <span className="font-medium">Notes</span>
+        </div>
+        <p className="text-sm text-muted-foreground">{habit.notes}</p>
+      </div>
+    )}
+
+    {habit.reminder && (
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Bell className="h-4 w-4" />
+        <span>Reminder at {format(new Date(habit.reminder), "h:mm a")}</span>
+      </div>
+    )}
+  </div>
+);
+
+// Utility functions
+const getFrequencyText = (habit: Habit): string => {
+  switch (habit.frequencyType) {
+    case FrequencyType.Daily:
+      return "Daily";
+    case FrequencyType.Weekly:
+      if (habit.frequencyValue.days?.length) {
+        return `Weekly: ${habit.frequencyValue.days.map((day) => DAY_NAMES[day]).join(", ")}`;
+      }
+      return "Weekly";
+    case FrequencyType.Monthly:
+      return "Monthly";
+    default:
+      return "";
+  }
 };
 
+// Main component
 export function HabitCard({
   habit,
   onToggleComplete,
   onDelete,
   onExpand,
   isExpanded,
+  onEdit,
+  onArchive,
+  onToggleReminder,
+  onViewStats,
 }: HabitCardProps) {
   const isCompleted = habit.lastCompleted !== null;
-
-  const getFrequencyText = () => {
-    switch (habit.frequencyType) {
-      case FrequencyType.Daily:
-        return "Daily";
-      case FrequencyType.Weekly:
-        if (habit.frequencyValue.days?.length) {
-          const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-          return `Weekly: ${habit.frequencyValue.days.map((day) => dayNames[day]).join(", ")}`;
-        }
-        return "Weekly";
-      case FrequencyType.Monthly:
-        return "Monthly";
-      default:
-        return "";
-    }
-  };
-
-  const categoryColors = {
-    mindfulness: "text-blue-500",
-    nutrition: "text-green-500",
-    fitness: "text-red-500",
-    productivity: "text-purple-500",
-    other: "text-gray-500",
-  };
-
-  const bgColors = {
-    mindfulness: "bg-blue-50 dark:bg-blue-950/30",
-    nutrition: "bg-green-50 dark:bg-green-950/30",
-    fitness: "bg-red-50 dark:bg-red-950/30",
-    productivity: "bg-purple-50 dark:bg-purple-950/30",
-    other: "bg-gray-50 dark:bg-gray-950/30",
-  };
 
   return (
     <Card
       className={cn(
         "group relative overflow-visible transition-all duration-300",
-        bgColors[habit.category]
+        CATEGORY_STYLES[habit.category as HabitCategory].bg
       )}
     >
       <CardContent className="p-4">
@@ -157,7 +223,7 @@ export function HabitCard({
               <span
                 className={cn(
                   "text-sm font-medium",
-                  categoryColors[habit.category]
+                  CATEGORY_STYLES[habit.category as HabitCategory].text
                 )}
               >
                 {habit.category}
@@ -167,7 +233,7 @@ export function HabitCard({
             <p className="text-sm text-muted-foreground">{habit.description}</p>
 
             <div className="flex items-center gap-3 text-sm text-muted-foreground">
-              <span>{getFrequencyText()}</span>
+              <span>{getFrequencyText(habit)}</span>
               {habit.streak > 0 && (
                 <span className="font-medium text-amber-500">
                   {habit.streak} day streak 🔥
@@ -194,7 +260,7 @@ export function HabitCard({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8"
+                className={ICON_BUTTON_STYLES}
                 onClick={onExpand}
               >
                 {isExpanded ? (
@@ -206,16 +272,69 @@ export function HabitCard({
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={ICON_BUTTON_STYLES}
+                  >
                     <MoreHorizontal className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+                <DropdownMenuContent
+                  align="end"
+                  className="min-w-[180px] rounded-md bg-white p-2 shadow-md dark:bg-zinc-900"
+                >
+                  {onEdit && (
+                    <DropdownMenuItem
+                      onClick={onEdit}
+                      className={DROPDOWN_ITEM_STYLES}
+                    >
+                      <Edit className="h-4 w-4" />
+                      Edit
+                    </DropdownMenuItem>
+                  )}
+                  {onArchive && (
+                    <DropdownMenuItem
+                      onClick={onArchive}
+                      className={DROPDOWN_ITEM_STYLES}
+                    >
+                      <Archive className="h-4 w-4" />
+                      Archive
+                    </DropdownMenuItem>
+                  )}
+                  {onToggleReminder && (
+                    <DropdownMenuItem
+                      onClick={onToggleReminder}
+                      className={DROPDOWN_ITEM_STYLES}
+                    >
+                      {habit.reminder ? (
+                        <>
+                          <BellOff className="h-4 w-4" />
+                          Disable Reminder
+                        </>
+                      ) : (
+                        <>
+                          <Bell className="h-4 w-4" />
+                          Enable Reminder
+                        </>
+                      )}
+                    </DropdownMenuItem>
+                  )}
+                  {onViewStats && (
+                    <DropdownMenuItem
+                      onClick={onViewStats}
+                      className={DROPDOWN_ITEM_STYLES}
+                    >
+                      <BarChart2 className="h-4 w-4" />
+                      View Stats
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    className="text-destructive focus:text-destructive"
                     onClick={onDelete}
+                    className={cn(DROPDOWN_ITEM_STYLES, "text-red-500")}
                   >
-                    <Trash2 className="mr-2 h-4 w-4" />
+                    <Trash2 className="h-4 w-4" />
                     Delete
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -223,6 +342,20 @@ export function HabitCard({
             </div>
           </div>
         </div>
+
+        <AnimatePresence>
+          {isExpanded && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              <ExpandedContent habit={habit} />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </CardContent>
     </Card>
   );
