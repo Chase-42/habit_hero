@@ -11,6 +11,12 @@ export default function RootLayout({
   return (
     <ClerkProvider>
       <html lang="en" suppressHydrationWarning>
+        <head>
+          <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0"
+          />
+        </head>
         <body className="min-h-screen bg-background antialiased">
           <ThemeProvider
             attribute="class"
@@ -18,7 +24,9 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            <LoadingProvider>{children}</LoadingProvider>
+            <LoadingProvider>
+              <div className="px-3">{children}</div>
+            </LoadingProvider>
           </ThemeProvider>
         </body>
       </html>
