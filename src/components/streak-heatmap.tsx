@@ -1,162 +1,198 @@
 "use client";
 
+import * as React from "react";
 import {
-  subDays,
-  format,
-  eachDayOfInterval,
-  startOfDay,
-  endOfDay,
-} from "date-fns";
-import { cn } from "~/lib/utils";
-import type {
-  DayCompletion,
-  StreakHeatmapProps,
-  HeatmapDayProps,
-  HeatmapLegendProps,
-} from "~/types/chart";
+  Bar,
+  BarChart,
+  CartesianGrid,
+  XAxis,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+import { format, subDays, startOfDay, endOfDay } from "date-fns";
+import type { StreakHeatmapProps } from "~/types/chart";
 import { FrequencyType } from "~/types/common/enums";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "~/components/ui/card";
 
-const getIntensityClass = (percentage: number): string => {
-  if (percentage === 0) return "bg-muted";
-  if (percentage <= 25) return "bg-primary/20";
-  if (percentage <= 50) return "bg-primary/40";
-  if (percentage <= 75) return "bg-primary/70";
-  return "bg-primary";
+const DAYS_TO_SHOW = 30; // Show last 30 days
+
+const chartConfig = {
+  completion: {
+    label: "Completion Rate",
+    color: "rgb(16, 185, 129)", // emerald-500
+  },
+  total: {
+    label: "Total Habits",
+    color: "rgb(16, 185, 129)", // emerald-500
+  },
 };
 
-const HeatmapDay = ({ day }: HeatmapDayProps) => (
-  <div
-    className={cn(
-      "group relative aspect-square w-full min-w-[20px] cursor-pointer rounded-sm transition-colors duration-200",
-      getIntensityClass(day.percentage)
-    )}
-    title={`${format(day.date, "MMM d, yyyy")}: ${
-      day.completed
-    } of ${day.total} habits completed`}
-  >
-    <div className="invisible absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 rounded-md bg-popover px-3 py-2 text-xs text-popover-foreground opacity-0 shadow-md transition-all duration-200 group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
-      <div className="font-medium">{format(day.date, "MMM d, yyyy")}</div>
-      <div className="text-muted-foreground">
-        {day.completed} of {day.total} habits
-      </div>
-      <div className="text-muted-foreground">
-        {Math.round(day.percentage)}% complete
-      </div>
-      <div className="absolute bottom-[-4px] left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 bg-popover" />
-    </div>
-  </div>
-);
+export function StreakHeatmap({ habits, habitLogs }: StreakHeatmapProps) {
+  const [activeChart, setActiveChart] =
+    React.useState<keyof typeof chartConfig>("completion");
 
-const HeatmapLegend = ({ weeks }: HeatmapLegendProps) => (
-  <div className="flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
-    <div className="font-medium">Last {weeks} Weeks</div>
-    <div className="flex items-center gap-2">
-      <div className="flex items-center gap-1">
-        <div className="h-3 w-3 rounded-sm bg-muted" />
-        <span className="text-xs text-muted-foreground">None</span>
-      </div>
-      <div className="flex items-center gap-1">
-        <div className="h-3 w-3 rounded-sm bg-primary/20" />
-        <span className="text-xs text-muted-foreground">Low</span>
-      </div>
-      <div className="flex items-center gap-1">
-        <div className="h-3 w-3 rounded-sm bg-primary/70" />
-        <span className="text-xs text-muted-foreground">High</span>
-      </div>
-    </div>
-  </div>
-);
+  // Generate chart data
+  const chartData = React.useMemo(() => {
+    const today = new Date();
+    const startDate = subDays(today, DAYS_TO_SHOW - 1);
+    const dates = Array.from({ length: DAYS_TO_SHOW }, (_, i) => {
+      const date = subDays(today, DAYS_TO_SHOW - 1 - i);
+      const dayStart = startOfDay(date);
+      const dayEnd = endOfDay(date);
 
-export function StreakHeatmap({
-  habits,
-  habitLogs,
-  days = 84, // 12 weeks
-}: StreakHeatmapProps) {
-  const today = new Date();
-  const startDateRange = subDays(today, days - 1);
-  const dateRange = eachDayOfInterval({ start: startDateRange, end: today });
-  const weeks = Math.ceil(days / 7);
+      // Count active habits and completed habits for the day
+      const activeHabits = habits.filter(
+        (habit) =>
+          !habit.isArchived &&
+          habit.isActive &&
+          isHabitActiveForDate(habit, date)
+      );
 
-  // Calculate completion rate for each day
-  const getDayCompletion = (date: Date): DayCompletion => {
-    // Create date range for the day
-    const dayStart = startOfDay(date);
-    const dayEnd = endOfDay(date);
+      const completedHabits = activeHabits.filter((habit) =>
+        habitLogs.some((log) => {
+          const completedAt = new Date(log.completedAt);
+          return (
+            log.habitId === habit.id &&
+            completedAt >= dayStart &&
+            completedAt <= dayEnd
+          );
+        })
+      );
 
-    // Count active habits for this day
-    const activeHabits = habits.filter((habit) => {
-      if (!habit.isActive || habit.isArchived) return false;
+      return {
+        date: format(date, "yyyy-MM-dd"),
+        completion:
+          activeHabits.length > 0
+            ? Math.round((completedHabits.length / activeHabits.length) * 100)
+            : 0,
+        total: activeHabits.length,
+        completed: completedHabits.length,
+      };
+    });
 
-      if (habit.frequencyType === FrequencyType.Daily) return true;
+    return dates;
+  }, [habits, habitLogs]);
 
-      if (habit.frequencyType === FrequencyType.Weekly) {
-        return habit.frequencyValue.days?.includes(date.getDay()) ?? false;
-      }
-
-      if (habit.frequencyType === FrequencyType.Monthly) {
-        return date.getDate() === 1;
-      }
-
-      return false;
-    }).length;
-
-    // Count completed habits for this day
-    const completedHabits = habits.filter((habit) =>
-      habitLogs.some((log) => {
-        const completedAt = new Date(log.completedAt);
-        return (
-          log.habitId === habit.id &&
-          completedAt >= dayStart &&
-          completedAt <= dayEnd
-        );
-      })
-    ).length;
-
-    return {
-      date,
-      percentage: activeHabits > 0 ? (completedHabits / activeHabits) * 100 : 0,
-      completed: completedHabits,
-      total: activeHabits,
-    };
-  };
-
-  const data = dateRange.map(getDayCompletion);
-
-  // Group data by weeks
-  const weekData = Array.from({ length: weeks }, (_, i) => {
-    const weekStart = i * 7;
-    return data.slice(weekStart, weekStart + 7);
-  });
+  // Calculate totals for the header
+  const totals = React.useMemo(
+    () => ({
+      completion: Math.round(
+        chartData.reduce((acc, curr) => acc + curr.completion, 0) /
+          chartData.length
+      ),
+      total: Math.round(
+        chartData.reduce((acc, curr) => acc + curr.total, 0) / chartData.length
+      ),
+    }),
+    [chartData]
+  );
 
   return (
-    <div className="w-full space-y-3">
-      <HeatmapLegend weeks={weeks} />
-      <div className="flex min-w-0 gap-1">
-        <div className="hidden grid-rows-7 gap-1 py-2 text-xs text-muted-foreground sm:grid">
-          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-            <div key={day} className="h-full w-14 px-2 text-right leading-8">
-              {day}
-            </div>
+    <Card>
+      <CardHeader className="flex flex-col items-stretch space-y-0 border-b p-0 sm:flex-row">
+        <div className="flex flex-1 flex-col justify-center gap-1 px-6 py-5 sm:py-6">
+          <CardTitle>Habit Completion</CardTitle>
+          <CardDescription>
+            Your habit completion trends over the last {DAYS_TO_SHOW} days
+          </CardDescription>
+        </div>
+        <div className="flex">
+          {(["completion", "total"] as const).map((key) => (
+            <button
+              key={key}
+              data-active={activeChart === key}
+              className="relative z-30 flex flex-1 flex-col justify-center gap-1 border-t px-6 py-4 text-left even:border-l data-[active=true]:bg-muted/50 sm:border-l sm:border-t-0 sm:px-8 sm:py-6"
+              onClick={() => setActiveChart(key)}
+            >
+              <span className="text-xs text-muted-foreground">
+                {chartConfig[key].label}
+              </span>
+              <span className="text-lg font-bold leading-none sm:text-3xl">
+                {key === "completion" ? `${totals[key]}%` : totals[key]}
+              </span>
+            </button>
           ))}
         </div>
-        <div className="grid flex-1 auto-cols-fr grid-flow-col gap-1">
-          {weekData.map((week, weekIndex) => (
-            <div key={weekIndex} className="grid grid-rows-7 gap-1">
-              {Array.from({ length: 7 }, (_, i) => {
-                const day = week[i];
-                if (!day)
-                  return (
-                    <div
-                      key={i}
-                      className="aspect-square w-full min-w-[20px]"
-                    />
-                  );
-                return <HeatmapDay key={i} day={day} />;
-              })}
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
+      </CardHeader>
+      <CardContent className="h-[300px] px-2 pt-6 sm:px-6">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+            <XAxis
+              dataKey="date"
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              minTickGap={32}
+              tickFormatter={(value: string) => {
+                const date = new Date(value);
+                return format(date, "MMM d");
+              }}
+            />
+            <Tooltip
+              content={({ active, payload }) => {
+                if (!active || !payload?.[0]) return null;
+                const data = payload[0] as {
+                  value: number;
+                  payload: {
+                    date: string;
+                    completion: number;
+                    total: number;
+                  };
+                };
+                const value = data.value;
+                const date = data.payload.date;
+
+                if (!date || typeof value !== "number") return null;
+
+                return (
+                  <div className="rounded-lg border bg-background p-2 shadow-md">
+                    <div className="font-medium">
+                      {format(new Date(date), "MMM d, yyyy")}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {activeChart === "completion"
+                        ? `${value}% completed`
+                        : `${value} habits`}
+                    </div>
+                  </div>
+                );
+              }}
+            />
+            <Bar
+              dataKey={activeChart}
+              fill={chartConfig[activeChart].color}
+              radius={[4, 4, 0, 0]}
+            />
+          </BarChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
   );
+}
+
+// Helper function to check if a habit is active for a given date
+function isHabitActiveForDate(
+  habit: {
+    frequencyType: FrequencyType;
+    frequencyValue: { days?: number[] };
+  },
+  date: Date
+): boolean {
+  switch (habit.frequencyType) {
+    case FrequencyType.Daily:
+      return true;
+    case FrequencyType.Weekly:
+      return habit.frequencyValue.days?.includes(date.getDay()) ?? false;
+    case FrequencyType.Monthly:
+      return date.getDate() === 1;
+    default:
+      return false;
+  }
 }
