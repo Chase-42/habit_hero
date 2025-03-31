@@ -26,6 +26,14 @@ type NewHabit = Omit<
   "id" | "createdAt" | "updatedAt" | "streak" | "longestStreak"
 >;
 
+function LoadingSpinner() {
+  return (
+    <div className="flex h-8 w-8 items-center justify-center">
+      <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+    </div>
+  );
+}
+
 export function DashboardPage() {
   const { user } = useUser();
   const [isAddHabitOpen, setIsAddHabitOpen] = useState(false);
@@ -41,6 +49,7 @@ export function DashboardPage() {
     completeHabit,
     deleteHabit,
     getTodayHabits,
+    isInitialLoad,
   } = useHabitOperations({
     userId: user?.id ?? "",
   });
@@ -60,135 +69,165 @@ export function DashboardPage() {
             </div>
           )}
 
-          {isLoading ? (
-            <div className="my-8 flex justify-center">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+          <div className="mb-6 flex items-center justify-between">
+            <div className="space-y-1">
+              <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
+              <p className="text-sm text-muted-foreground">
+                Track and manage your daily habits
+              </p>
             </div>
-          ) : (
-            <>
-              <div className="mb-6 flex items-center justify-between">
-                <div className="space-y-1">
-                  <h2 className="text-3xl font-bold tracking-tight">
-                    Dashboard
-                  </h2>
-                  <p className="text-sm text-muted-foreground">
-                    Track and manage your daily habits
-                  </p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">
-                    {new Date().toLocaleDateString("en-US", {
-                      weekday: "long",
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </span>
-                </div>
-              </div>
+            <div className="flex items-center space-x-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">
+                {new Date().toLocaleDateString("en-US", {
+                  weekday: "long",
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </span>
+            </div>
+          </div>
 
-              <Tabs defaultValue="overview" className="space-y-4">
-                <TabsList className="w-full justify-start space-x-2 rounded-none border-b bg-transparent p-0">
-                  <TabsTrigger
-                    value="overview"
-                    className="relative rounded-none border-b-2 border-transparent bg-transparent px-4 pb-3 pt-2 font-semibold text-muted-foreground hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground"
-                  >
-                    Overview
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="habits"
-                    className="relative rounded-none border-b-2 border-transparent bg-transparent px-4 pb-3 pt-2 font-semibold text-muted-foreground hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground"
-                  >
-                    My Habits
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="calendar"
-                    className="relative rounded-none border-b-2 border-transparent bg-transparent px-4 pb-3 pt-2 font-semibold text-muted-foreground hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground"
-                  >
-                    Calendar
-                  </TabsTrigger>
-                </TabsList>
+          <Tabs defaultValue="overview" className="space-y-4">
+            <TabsList className="w-full justify-start space-x-2 rounded-none border-b bg-transparent p-0">
+              <TabsTrigger
+                value="overview"
+                className="relative rounded-none border-b-2 border-transparent bg-transparent px-4 pb-3 pt-2 font-semibold text-muted-foreground hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground"
+              >
+                Overview
+              </TabsTrigger>
+              <TabsTrigger
+                value="habits"
+                className="relative rounded-none border-b-2 border-transparent bg-transparent px-4 pb-3 pt-2 font-semibold text-muted-foreground hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground"
+              >
+                My Habits
+              </TabsTrigger>
+              <TabsTrigger
+                value="calendar"
+                className="relative rounded-none border-b-2 border-transparent bg-transparent px-4 pb-3 pt-2 font-semibold text-muted-foreground hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground"
+              >
+                Calendar
+              </TabsTrigger>
+            </TabsList>
 
-                <TabsContent value="overview" className="space-y-4">
-                  <div className="grid gap-4">
-                    <StatsCards habits={habits} habitLogs={habitLogs} />
-
-                    <div className="grid gap-4 lg:grid-cols-2">
-                      <Card>
-                        <CardHeader>
-                          <CardTitle>Completion History</CardTitle>
-                          <CardDescription>
-                            Your habit completion patterns over time
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent className="p-4">
-                          <StreakHeatmap
-                            habits={habits}
-                            habitLogs={habitLogs}
-                          />
+            <TabsContent value="overview" className="space-y-4">
+              <div className="grid gap-4">
+                {isInitialLoad ? (
+                  <div className="grid gap-4 md:grid-cols-3">
+                    {[1, 2, 3].map((i) => (
+                      <Card key={i}>
+                        <CardContent className="p-6">
+                          <div className="h-8 w-24 animate-pulse rounded bg-muted" />
+                          <div className="mt-2 h-4 w-16 animate-pulse rounded bg-muted" />
                         </CardContent>
                       </Card>
-
-                      <Card>
-                        <CardHeader>
-                          <CardTitle>Today&apos;s Habits</CardTitle>
-                          <CardDescription>
-                            Habits to complete today
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent className="p-4">
-                          <HabitList
-                            habits={getTodayHabits()}
-                            habitLogs={habitLogs}
-                            onComplete={completeHabit}
-                            onDelete={deleteHabit}
-                            userId={user?.id ?? ""}
-                            completingHabits={completingHabits}
-                            deletingHabits={deletingHabits}
-                          />
-                        </CardContent>
-                      </Card>
-                    </div>
+                    ))}
                   </div>
-                </TabsContent>
+                ) : (
+                  <StatsCards habits={habits} habitLogs={habitLogs} />
+                )}
 
-                <TabsContent value="habits">
+                <div className="grid gap-4 lg:grid-cols-2">
                   <Card>
                     <CardHeader>
-                      <CardTitle>All Habits</CardTitle>
-                      <CardDescription>Manage all your habits</CardDescription>
-                    </CardHeader>
-                    <CardContent className="p-4">
-                      <HabitList
-                        habits={habits}
-                        habitLogs={habitLogs}
-                        onComplete={completeHabit}
-                        onDelete={deleteHabit}
-                        userId={user?.id ?? ""}
-                        completingHabits={completingHabits}
-                        deletingHabits={deletingHabits}
-                      />
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-
-                <TabsContent value="calendar">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Habit Calendar</CardTitle>
+                      <CardTitle>Completion History</CardTitle>
                       <CardDescription>
-                        View your habit completion history
+                        Your habit completion patterns over time
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="p-4">
-                      <HabitCalendar habits={habits} habitLogs={habitLogs} />
+                      {isInitialLoad ? (
+                        <div className="h-[300px] animate-pulse rounded bg-muted" />
+                      ) : (
+                        <StreakHeatmap habits={habits} habitLogs={habitLogs} />
+                      )}
                     </CardContent>
                   </Card>
-                </TabsContent>
-              </Tabs>
-            </>
-          )}
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Today&apos;s Habits</CardTitle>
+                      <CardDescription>
+                        Habits to complete today
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-4">
+                      {isInitialLoad ? (
+                        <div className="space-y-4">
+                          {[1, 2, 3].map((i) => (
+                            <div
+                              key={i}
+                              className="h-16 animate-pulse rounded bg-muted"
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <HabitList
+                          habits={getTodayHabits()}
+                          habitLogs={habitLogs}
+                          onComplete={completeHabit}
+                          onDelete={deleteHabit}
+                          userId={user?.id ?? ""}
+                          completingHabits={completingHabits}
+                          deletingHabits={deletingHabits}
+                        />
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="habits">
+              <Card>
+                <CardHeader>
+                  <CardTitle>All Habits</CardTitle>
+                  <CardDescription>Manage all your habits</CardDescription>
+                </CardHeader>
+                <CardContent className="p-4">
+                  {isInitialLoad ? (
+                    <div className="space-y-4">
+                      {[1, 2, 3].map((i) => (
+                        <div
+                          key={i}
+                          className="h-16 animate-pulse rounded bg-muted"
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <HabitList
+                      habits={habits}
+                      habitLogs={habitLogs}
+                      onComplete={completeHabit}
+                      onDelete={deleteHabit}
+                      userId={user?.id ?? ""}
+                      completingHabits={completingHabits}
+                      deletingHabits={deletingHabits}
+                    />
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="calendar">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Habit Calendar</CardTitle>
+                  <CardDescription>
+                    View your habit completion history
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-4">
+                  {isInitialLoad ? (
+                    <div className="h-[300px] animate-pulse rounded bg-muted" />
+                  ) : (
+                    <HabitCalendar habits={habits} habitLogs={habitLogs} />
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </div>
       </main>
 

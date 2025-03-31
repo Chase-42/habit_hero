@@ -25,6 +25,7 @@ interface UseHabitOperationsState {
   error: string | null;
   completingHabits: Set<string>;
   deletingHabits: Set<string>;
+  isInitialLoad: boolean;
 }
 
 export function useHabitOperations({ userId }: UseHabitOperationsProps) {
@@ -35,6 +36,7 @@ export function useHabitOperations({ userId }: UseHabitOperationsProps) {
     error: null,
     completingHabits: new Set(),
     deletingHabits: new Set(),
+    isInitialLoad: true,
   });
 
   const setPartialState = (
@@ -61,25 +63,25 @@ export function useHabitOperations({ userId }: UseHabitOperationsProps) {
       const habits = await fetchHabits(userId);
       setPartialState({ habits });
 
-      // Load recent logs (last 14 days) immediately
-      const recentEndDate = new Date();
-      const recentStartDate = new Date();
-      recentStartDate.setDate(recentStartDate.getDate() - 14);
+      // Load only today's logs initially for faster first render
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
 
-      const recentLogs = await Promise.all(
+      const todayLogs = await Promise.all(
         habits.map(async (habit) => {
-          const logs = await fetchHabitLogs(
-            habit.id,
-            recentStartDate,
-            recentEndDate
-          );
+          const logs = await fetchHabitLogs(habit.id, today, tomorrow);
           return logs;
         })
       );
-      setPartialState({ habitLogs: recentLogs.flat() });
+      setPartialState({
+        habitLogs: todayLogs.flat(),
+        isInitialLoad: false,
+      });
 
-      // Load older logs in the background
-      void loadOlderLogs(habits, recentStartDate);
+      // Load recent logs in the background
+      void loadRecentLogs(habits);
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to load habits";
@@ -90,31 +92,35 @@ export function useHabitOperations({ userId }: UseHabitOperationsProps) {
     }
   };
 
-  const loadOlderLogs = async (habits: Habit[], afterDate: Date) => {
-    const olderEndDate = new Date(afterDate);
-    const olderStartDate = new Date();
-    olderStartDate.setDate(olderStartDate.getDate() - 84); // Load up to 84 days
+  const loadRecentLogs = async (habits: Habit[]) => {
+    const recentEndDate = new Date();
+    const recentStartDate = new Date();
+    recentStartDate.setDate(recentStartDate.getDate() - 14);
 
     try {
-      const olderLogs = await Promise.all(
+      const recentLogs = await Promise.all(
         habits.map(async (habit) => {
           const logs = await fetchHabitLogs(
             habit.id,
-            olderStartDate,
-            olderEndDate
+            recentStartDate,
+            recentEndDate
           );
           return logs;
         })
       );
 
-      // Merge with existing logs
-      setPartialState((prev: UseHabitOperationsState) => ({
-        ...prev,
-        habitLogs: [...prev.habitLogs, ...olderLogs.flat()],
-      }));
+      // Merge with existing logs, avoiding duplicates
+      setPartialState((prev) => {
+        const existingLogIds = new Set(prev.habitLogs.map((log) => log.id));
+        const newLogs = recentLogs
+          .flat()
+          .filter((log) => !existingLogIds.has(log.id));
+        return {
+          habitLogs: [...prev.habitLogs, ...newLogs],
+        };
+      });
     } catch (err) {
-      console.error("Error loading older logs:", err);
-      // Don't show error toast for background load
+      console.error("Error loading recent logs:", err);
     }
   };
 

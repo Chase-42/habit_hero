@@ -1,34 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Button } from "~/components/ui/button";
-import { SignInButton, SignUpButton, useAuth } from "@clerk/nextjs";
-import { useEffect } from "react";
+import { SignInButton, SignUpButton } from "@clerk/nextjs";
 
-export default function LandingPage() {
-  const { isSignedIn, isLoaded } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (isLoaded && isSignedIn) {
-      router.push("/");
-    }
-  }, [isLoaded, isSignedIn, router]);
-
-  if (!isLoaded) {
-    return null;
-  }
-
+export function LandingPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-10 border-b bg-background">
         <div className="container flex h-16 items-center justify-between py-4">
           <div className="flex items-center gap-2">
-            <Link
-              href="/landing"
-              className="text-2xl font-bold hover:text-primary"
-            >
+            <Link href="/" className="text-2xl font-bold hover:text-primary">
               HabitHero
             </Link>
           </div>
