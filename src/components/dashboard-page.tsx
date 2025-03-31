@@ -40,62 +40,98 @@ export function DashboardPage() {
         isLoading={isLoading}
       />
 
-      <main className="flex-1 overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3">
-          <div>
-            <h1 className="text-2xl">Dashboard</h1>
-            <p className="text-sm text-muted-foreground">
-              Track and manage your daily habits
-            </p>
-          </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Calendar className="h-4 w-4" />
-            <span>
-              {new Date().toLocaleDateString("en-US", {
-                weekday: "long",
-                month: "long",
-                day: "numeric",
-              })}
-            </span>
+      <main className="flex-1 overflow-y-auto">
+        <div className="border-b bg-background">
+          <div className="px-3 py-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h1 className="text-lg font-semibold sm:text-2xl">Dashboard</h1>
+                <p className="text-sm text-muted-foreground">
+                  Track and manage your daily habits
+                </p>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Calendar className="h-4 w-4" />
+                <span>
+                  {new Date().toLocaleDateString("en-US", {
+                    weekday: "long",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="px-4">
+        <div className="pt-3">
           <Tabs defaultValue="overview" className="space-y-3">
-            <TabsList className="bg-background">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="habits">My Habits</TabsTrigger>
-              <TabsTrigger value="calendar">Calendar</TabsTrigger>
+            <TabsList className="w-full rounded-none px-3">
+              <TabsTrigger value="overview" className="flex-1 text-sm">
+                Overview
+              </TabsTrigger>
+              <TabsTrigger value="habits" className="flex-1 text-sm">
+                My Habits
+              </TabsTrigger>
+              <TabsTrigger value="calendar" className="flex-1 text-sm">
+                Calendar
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="space-y-3">
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 gap-3 px-3 sm:grid-cols-2 md:grid-cols-4">
                 <StatsCards habits={habits} habitLogs={habitLogs} />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <Card>
-                  <CardHeader className="pb-2">
+              <div className="grid grid-cols-1 gap-3 px-3 md:grid-cols-2">
+                <Card className="overflow-hidden rounded-sm">
+                  <CardHeader className="px-3 pb-2 pt-3">
                     <h3 className="text-sm font-medium">Completion History</h3>
                     <p className="text-xs text-muted-foreground">
                       Your habit completion patterns over time
                     </p>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="px-3 pb-3">
                     <StreakHeatmap habits={habits} habitLogs={habitLogs} />
                   </CardContent>
                 </Card>
 
-                <Card>
-                  <CardHeader className="pb-2">
+                <Card className="overflow-hidden rounded-sm">
+                  <CardHeader className="px-3 pb-2 pt-3">
                     <h3 className="text-sm font-medium">Today&apos;s Habits</h3>
                     <p className="text-xs text-muted-foreground">
                       Habits to complete today
                     </p>
                   </CardHeader>
-                  <CardContent className="h-[400px] overflow-auto">
+                  <CardContent className="px-3 pb-3">
+                    <div className="space-y-1.5">
+                      <HabitList
+                        habits={getTodayHabits()}
+                        habitLogs={habitLogs}
+                        onComplete={completeHabit}
+                        onDelete={deleteHabit}
+                        userId={user?.id ?? ""}
+                        completingHabits={completingHabits}
+                        deletingHabits={deletingHabits}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="habits">
+              <Card className="mx-2 overflow-hidden rounded-sm">
+                <CardHeader className="px-2 pb-1.5 pt-2">
+                  <h3 className="text-sm font-medium">All Habits</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Manage all your habits
+                  </p>
+                </CardHeader>
+                <CardContent className="px-2 pb-2">
+                  <div className="space-y-1.5">
                     <HabitList
-                      habits={getTodayHabits()}
+                      habits={habits}
                       habitLogs={habitLogs}
                       onComplete={completeHabit}
                       onDelete={deleteHabit}
@@ -103,42 +139,20 @@ export function DashboardPage() {
                       completingHabits={completingHabits}
                       deletingHabits={deletingHabits}
                     />
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="habits">
-              <Card>
-                <CardHeader className="pb-2">
-                  <h3 className="text-sm font-medium">All Habits</h3>
-                  <p className="text-xs text-muted-foreground">
-                    Manage all your habits
-                  </p>
-                </CardHeader>
-                <CardContent className="h-[600px] overflow-auto">
-                  <HabitList
-                    habits={habits}
-                    habitLogs={habitLogs}
-                    onComplete={completeHabit}
-                    onDelete={deleteHabit}
-                    userId={user?.id ?? ""}
-                    completingHabits={completingHabits}
-                    deletingHabits={deletingHabits}
-                  />
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
 
             <TabsContent value="calendar">
-              <Card>
-                <CardHeader className="pb-2">
+              <Card className="mx-2 overflow-hidden rounded-sm">
+                <CardHeader className="px-2 pb-1.5 pt-2">
                   <h3 className="text-sm font-medium">Habit Calendar</h3>
                   <p className="text-xs text-muted-foreground">
                     View your habit completion history
                   </p>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="px-2 pb-2">
                   <HabitCalendar habits={habits} habitLogs={habitLogs} />
                 </CardContent>
               </Card>
@@ -147,7 +161,7 @@ export function DashboardPage() {
         </div>
 
         {error && (
-          <div className="mx-4 mt-3 rounded border border-destructive bg-destructive/10 p-2 text-sm text-destructive">
+          <div className="mx-2 mt-2 rounded-sm border border-destructive bg-destructive/10 p-1.5 text-sm text-destructive">
             {error}
           </div>
         )}
