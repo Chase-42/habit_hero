@@ -41,6 +41,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
+import { LoadingSpinner } from "~/components/ui/loading-spinner";
 
 type NewHabit = Omit<
   Habit,
@@ -388,7 +389,7 @@ export function AddHabitModal({
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? (
                 <>
-                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent"></div>
+                  <LoadingSpinner size={16} className="mr-2" />
                   Creating...
                 </>
               ) : (

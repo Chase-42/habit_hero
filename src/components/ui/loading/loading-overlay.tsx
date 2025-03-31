@@ -1,5 +1,5 @@
 import { cn } from "~/lib/utils";
-import { Loader2 } from "lucide-react";
+import { LoadingSpinner } from "~/components/ui/loading-spinner";
 
 interface LoadingOverlayProps {
   isLoading: boolean;
@@ -21,10 +21,7 @@ export function LoadingOverlay({
         className
       )}
     >
-      <div className="flex flex-col items-center gap-2">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        {message && <p className="text-sm text-muted-foreground">{message}</p>}
-      </div>
+      <LoadingSpinner size={32} label={message} />
     </div>
   );
 }

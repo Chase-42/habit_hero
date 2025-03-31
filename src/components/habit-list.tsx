@@ -15,6 +15,7 @@ import {
 } from "~/components/ui/alert-dialog";
 import type { Habit, HabitLog } from "~/types";
 import { toast } from "sonner";
+import { LoadingSpinner } from "~/components/ui/loading-spinner";
 
 // Types
 export interface HabitListProps {

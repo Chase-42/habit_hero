@@ -20,19 +20,12 @@ import { Header } from "~/components/header";
 import { StatsCards } from "~/components/stats-cards";
 import { useHabitOperations } from "~/hooks/use-habit-operations";
 import type { Habit } from "~/types";
+import { LoadingSpinner } from "~/components/ui/loading-spinner";
 
 type NewHabit = Omit<
   Habit,
   "id" | "createdAt" | "updatedAt" | "streak" | "longestStreak"
 >;
-
-function LoadingSpinner() {
-  return (
-    <div className="flex h-8 w-8 items-center justify-center">
-      <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-    </div>
-  );
-}
 
 export function DashboardPage() {
   const { user } = useUser();
