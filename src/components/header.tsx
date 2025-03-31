@@ -13,33 +13,44 @@ interface HeaderProps {
 export function Header({ onAddHabit, isLoading = false }: HeaderProps) {
   return (
     <header className="sticky top-0 z-10 border-b bg-background">
-      <div className="container flex h-16 items-center justify-between py-4">
-        <div className="flex items-center gap-2">
-          <Link href="/" className="text-2xl font-bold hover:text-primary">
+      <div className="flex h-14 items-center justify-between px-3">
+        <div className="flex items-center gap-1.5">
+          <Link
+            href="/"
+            className="text-lg font-bold hover:text-primary sm:text-xl"
+          >
             HabitHero
           </Link>
           <SignedIn>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <ChevronRight className="h-4 w-4" />
+            <div className="hidden items-center gap-1.5 text-sm text-muted-foreground sm:flex">
+              <ChevronRight className="h-3.5 w-3.5" />
               <Link href="/" className="hover:text-foreground">
                 Dashboard
               </Link>
             </div>
           </SignedIn>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <SignedOut>
             <SignInButton mode="modal">
-              <Button variant="default">Sign In</Button>
+              <Button variant="default" size="sm" className="text-sm">
+                Sign In
+              </Button>
             </SignInButton>
           </SignedOut>
           <SignedIn>
-            <Button onClick={onAddHabit} disabled={isLoading} size="sm">
-              <Plus className="mr-2 h-4 w-4" />
-              Add Habit
+            <Button
+              onClick={onAddHabit}
+              disabled={isLoading}
+              size="sm"
+              className="h-8 px-2 text-sm"
+            >
+              <Plus className="mr-1 h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Add Habit</span>
+              <span className="sm:hidden">Add</span>
             </Button>
             <ThemeToggle />
-            <UserButton />
+            <UserButton afterSignOutUrl="/" />
           </SignedIn>
           {/* <Link href="/settings">
             <Button variant="ghost" size="icon">
