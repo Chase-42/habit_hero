@@ -13,6 +13,7 @@ import { StreakHeatmap } from "~/components/streak-heatmap";
 import { Header } from "~/components/header";
 import { StatsCards } from "~/components/stats-cards";
 import { useHabitOperations } from "~/hooks/use-habit-operations";
+import { ScrollArea } from "~/components/ui/scroll-area";
 
 export function DashboardPage() {
   const { user } = useUser();
@@ -103,18 +104,20 @@ export function DashboardPage() {
                       Habits to complete today
                     </p>
                   </CardHeader>
-                  <CardContent className="px-3 pb-3">
-                    <div className="space-y-1.5">
-                      <HabitList
-                        habits={getTodayHabits()}
-                        habitLogs={habitLogs}
-                        onComplete={completeHabit}
-                        onDelete={deleteHabit}
-                        userId={user?.id ?? ""}
-                        completingHabits={completingHabits}
-                        deletingHabits={deletingHabits}
-                      />
-                    </div>
+                  <CardContent className="p-0">
+                    <ScrollArea className="h-[300px]">
+                      <div className="space-y-3 px-3 pb-3">
+                        <HabitList
+                          habits={getTodayHabits()}
+                          habitLogs={habitLogs}
+                          onComplete={completeHabit}
+                          onDelete={deleteHabit}
+                          userId={user?.id ?? ""}
+                          completingHabits={completingHabits}
+                          deletingHabits={deletingHabits}
+                        />
+                      </div>
+                    </ScrollArea>
                   </CardContent>
                 </Card>
               </div>
@@ -129,7 +132,7 @@ export function DashboardPage() {
                   </p>
                 </CardHeader>
                 <CardContent className="px-2 pb-2">
-                  <div className="space-y-1.5">
+                  <div className="h-[500px] overflow-y-auto">
                     <HabitList
                       habits={habits}
                       habitLogs={habitLogs}
