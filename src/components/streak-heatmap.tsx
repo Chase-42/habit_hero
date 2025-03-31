@@ -27,14 +27,14 @@ const getIntensityClass = (percentage: number): string => {
 const HeatmapDay = ({ day }: HeatmapDayProps) => (
   <div
     className={cn(
-      "group aspect-square w-full min-w-[20px] rounded-sm",
+      "group relative aspect-square w-full min-w-[20px] cursor-pointer rounded-sm transition-colors duration-200",
       getIntensityClass(day.percentage)
     )}
     title={`${format(day.date, "MMM d, yyyy")}: ${
       day.completed
     } of ${day.total} habits completed`}
   >
-    <div className="invisible absolute z-50 rounded-md bg-popover px-2 py-1 text-xs text-popover-foreground opacity-0 group-hover:visible group-hover:opacity-100">
+    <div className="invisible absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 rounded-md bg-popover px-3 py-2 text-xs text-popover-foreground opacity-0 shadow-md transition-all duration-200 group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
       <div className="font-medium">{format(day.date, "MMM d, yyyy")}</div>
       <div className="text-muted-foreground">
         {day.completed} of {day.total} habits
@@ -42,6 +42,7 @@ const HeatmapDay = ({ day }: HeatmapDayProps) => (
       <div className="text-muted-foreground">
         {Math.round(day.percentage)}% complete
       </div>
+      <div className="absolute bottom-[-4px] left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 bg-popover" />
     </div>
   </div>
 );
