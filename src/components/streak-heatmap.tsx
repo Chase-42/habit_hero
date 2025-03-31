@@ -27,7 +27,7 @@ const getIntensityClass = (percentage: number): string => {
 const HeatmapDay = ({ day }: HeatmapDayProps) => (
   <div
     className={cn(
-      "group h-8 w-8 rounded-sm",
+      "group aspect-square w-full min-w-[20px] rounded-sm",
       getIntensityClass(day.percentage)
     )}
     title={`${format(day.date, "MMM d, yyyy")}: ${
@@ -47,7 +47,7 @@ const HeatmapDay = ({ day }: HeatmapDayProps) => (
 );
 
 const HeatmapLegend = ({ weeks }: HeatmapLegendProps) => (
-  <div className="flex items-center justify-between text-sm">
+  <div className="flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
     <div className="font-medium">Last {weeks} Weeks</div>
     <div className="flex items-center gap-2">
       <div className="flex items-center gap-1">
@@ -128,22 +128,28 @@ export function StreakHeatmap({
   });
 
   return (
-    <div className="space-y-3">
+    <div className="w-full space-y-3">
       <HeatmapLegend weeks={weeks} />
-      <div className="flex gap-1">
-        <div className="grid grid-rows-7 gap-1 py-2 text-xs text-muted-foreground">
+      <div className="flex min-w-0 gap-1">
+        <div className="hidden grid-rows-7 gap-1 py-2 text-xs text-muted-foreground sm:grid">
           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-            <div key={day} className="h-8 px-2 text-right leading-8">
+            <div key={day} className="h-full w-14 px-2 text-right leading-8">
               {day}
             </div>
           ))}
         </div>
-        <div className="grid auto-cols-fr grid-flow-col gap-1">
+        <div className="grid flex-1 auto-cols-fr grid-flow-col gap-1">
           {weekData.map((week, weekIndex) => (
             <div key={weekIndex} className="grid grid-rows-7 gap-1">
               {Array.from({ length: 7 }, (_, i) => {
                 const day = week[i];
-                if (!day) return <div key={i} className="h-8 w-8" />;
+                if (!day)
+                  return (
+                    <div
+                      key={i}
+                      className="aspect-square w-full min-w-[20px]"
+                    />
+                  );
                 return <HeatmapDay key={i} day={day} />;
               })}
             </div>
