@@ -39,7 +39,7 @@ export function Header({ onAddHabit, isLoading = false }: HeaderProps) {
               Add Habit
             </Button>
             <ThemeToggle />
-            <UserButton />
+            <UserButton afterSignOutUrl="/landing" />
           </SignedIn>
           {/* <Link href="/settings">
             <Button variant="ghost" size="icon">
