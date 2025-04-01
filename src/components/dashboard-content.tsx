@@ -150,7 +150,7 @@ export function DashboardContent() {
   }
 
   return (
-    <main className="flex-1 overflow-y-auto">
+    <main className="flex h-[calc(100vh-4rem)] flex-col overflow-hidden">
       <div className="border-b bg-background">
         <div className="px-3 py-3">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -174,7 +174,7 @@ export function DashboardContent() {
         </div>
       </div>
 
-      <div className="pt-3">
+      <div className="flex-1 overflow-y-auto">
         <Tabs defaultValue="overview" className="space-y-3">
           <TabsList className="w-full rounded-none px-3">
             <TabsTrigger value="overview" className="flex-1 text-sm">
@@ -214,7 +214,7 @@ export function DashboardContent() {
                   </p>
                 </CardHeader>
                 <CardContent className="relative p-0">
-                  <ScrollArea className="h-[500px]">
+                  <ScrollArea className="h-[400px]">
                     <div className="space-y-3 px-3 pb-3">
                       <HabitList
                         habits={getTodayHabits()}
