@@ -85,8 +85,13 @@ const CompletionButton = ({
     )}
     onClick={onClick}
     whileTap={{ scale: 0.9 }}
+    initial={false}
+    animate={{
+      backgroundColor: isCompleted ? "rgb(34 197 94)" : "var(--muted)",
+      color: isCompleted ? "white" : "var(--muted-foreground)",
+    }}
   >
-    <AnimatePresence mode="wait">
+    <AnimatePresence mode="wait" initial={false}>
       {isCompleted ? (
         <motion.div
           key="check"
@@ -111,7 +116,11 @@ const CompletionButton = ({
     <motion.div
       className="absolute inset-0 rounded-full bg-green-500"
       initial={false}
-      animate={isCompleted ? { scale: [0.8, 1.4], opacity: [0.5, 0] } : {}}
+      animate={
+        isCompleted
+          ? { scale: [0.8, 1.4], opacity: [0.5, 0] }
+          : { scale: 0, opacity: 0 }
+      }
       transition={{ duration: 0.4 }}
     />
   </motion.button>
@@ -199,7 +208,28 @@ export function HabitCard({
   onToggleReminder,
   onViewStats,
 }: HabitCardProps) {
-  const isCompleted = habit.lastCompleted !== null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const lastCompleted = habit.lastCompleted
+    ? new Date(habit.lastCompleted)
+    : null;
+  const isCompleted = lastCompleted ? lastCompleted >= today : false;
+
+  console.log(
+    "[HABIT-CARD] State:\n" +
+      JSON.stringify(
+        {
+          habitId: habit.id,
+          habitName: habit.name,
+          lastCompleted,
+          today,
+          isCompleted,
+          rawLastCompleted: habit.lastCompleted,
+        },
+        null,
+        2
+      )
+  );
 
   return (
     <Card

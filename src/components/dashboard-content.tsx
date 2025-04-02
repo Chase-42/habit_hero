@@ -31,90 +31,88 @@ export function DashboardContent() {
     userId: user?.id ?? "",
   });
 
-  const completeHabitMutation = useMutation({
-    mutationFn: async ({
-      habit,
-      isCompleted,
-    }: {
-      habit: Habit;
-      isCompleted: boolean;
-    }) => {
+  const { data: habits = [], isLoading } = useQuery({
+    queryKey: ["habits"],
+    queryFn: async () => {
+      console.log("[FETCH] Starting habits fetch");
+      const data = await fetchHabits(user?.id ?? "");
       console.log(
-        "Starting toggle:",
-        JSON.stringify({ habitId: habit.id, isCompleted, habit }, null, 2)
+        "[FETCH] Habits received:",
+        data.map((h) => ({
+          id: h.id,
+          name: h.name,
+          lastCompleted: h.lastCompleted,
+          streak: h.streak,
+        }))
       );
-      const result = await toggleHabit(habit, isCompleted);
-      console.log("Toggle result:", JSON.stringify(result, null, 2));
+      return data;
+    },
+  });
+
+  const completeHabitMutation = useMutation({
+    mutationFn: async ({ habit }: { habit: Habit }) => {
+      console.log("[TOGGLE] Before toggle:", {
+        habitId: habit.id,
+        name: habit.name,
+        lastCompleted: habit.lastCompleted,
+      });
+      const result = await toggleHabit(habit);
+      console.log("[TOGGLE] After toggle:", {
+        habitId: result.id,
+        name: result.name,
+        lastCompleted: result.lastCompleted,
+      });
       return result;
     },
-    onMutate: ({ habit }) => {
-      console.log(
-        "Adding to completing set:",
-        JSON.stringify({ habitId: habit.id }, null, 2)
+    onMutate: async ({ habit }) => {
+      await queryClient.cancelQueries({ queryKey: ["habits"] });
+      const previousHabits = queryClient.getQueryData<Habit[]>(["habits"]);
+
+      queryClient.setQueryData<Habit[]>(["habits"], (old = []) =>
+        old.map((h) => {
+          if (h.id === habit.id) {
+            const updatedHabit = {
+              ...h,
+              lastCompleted: h.lastCompleted ? null : new Date(),
+            };
+            console.log("[OPTIMISTIC] Updating habit:", {
+              id: h.id,
+              name: h.name,
+              oldLastCompleted: h.lastCompleted,
+              newLastCompleted: updatedHabit.lastCompleted,
+            });
+            return updatedHabit;
+          }
+          return h;
+        })
       );
+
       setCompletingHabits((prev) => new Set([...prev, habit.id]));
+      return { previousHabits };
     },
-    onSuccess: async (updatedHabit, { habit, isCompleted }) => {
-      console.log(
-        "Toggle success:",
-        JSON.stringify(
-          {
-            habitId: habit.id,
-            isCompleted,
-            lastCompleted: updatedHabit.lastCompleted,
-            streak: updatedHabit.streak,
-          },
-          null,
-          2
-        )
-      );
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["habits"] }),
-        queryClient.invalidateQueries({ queryKey: ["habitLogs"] }),
-      ]);
-    },
-    onError: (error, { habit, isCompleted }) => {
-      console.error(
-        "Toggle error:",
-        JSON.stringify({ habitId: habit.id, isCompleted, error }, null, 2)
-      );
-    },
-    onSettled: (_, __, { habit }) => {
-      console.log(
-        "Removing from completing set:",
-        JSON.stringify({ habitId: habit.id }, null, 2)
-      );
+    onError: (_, { habit }, context) => {
+      if (context?.previousHabits) {
+        queryClient.setQueryData(["habits"], context.previousHabits);
+      }
       setCompletingHabits((prev) => {
         const next = new Set(prev);
         next.delete(habit.id);
         return next;
       });
     },
+    onSettled: async (_, __, { habit }) => {
+      setCompletingHabits((prev) => {
+        const next = new Set(prev);
+        next.delete(habit.id);
+        return next;
+      });
+      await queryClient.invalidateQueries({ queryKey: ["habits"] });
+    },
   });
 
   const completeHabit = async (habit: Habit) => {
-    console.log(
-      "Before toggle:",
-      JSON.stringify(
-        {
-          habitId: habit.id,
-          lastCompleted: habit.lastCompleted,
-          streak: habit.streak,
-          isCompleted: habit.lastCompleted !== null,
-        },
-        null,
-        2
-      )
-    );
-
-    const isCompleted = habit.lastCompleted !== null;
-    await completeHabitMutation.mutateAsync({ habit, isCompleted });
+    await completeHabitMutation.mutateAsync({ habit });
   };
-
-  const { data: habits = [], isLoading } = useQuery({
-    queryKey: ["habits"],
-    queryFn: () => fetchHabits(user?.id ?? ""),
-  });
 
   const todayHabits = useMemo(() => {
     const today = new Date().getDay();

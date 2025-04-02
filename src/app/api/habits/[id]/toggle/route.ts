@@ -66,49 +66,85 @@ export async function PUT(
         )
       );
 
-    if (input.completed) {
-      // If marking as completed and no log exists, create one
-      if (!existingLog) {
-        await db.insert(habitLogs).values({
-          id: crypto.randomUUID(),
-          habitId: id,
-          userId: input.userId,
-          completedAt: now,
-          value: null,
-          notes: null,
-          details: null,
-          difficulty: null,
-          feeling: null,
-          hasPhoto: false,
-          photoUrl: null,
-        });
+    console.log(
+      "[API] Toggle state:\n" +
+        JSON.stringify(
+          {
+            habitId: id,
+            existingLog: existingLog
+              ? {
+                  id: existingLog.id,
+                  completedAt: existingLog.completedAt,
+                }
+              : null,
+            today,
+            tomorrow,
+          },
+          null,
+          2
+        )
+    );
 
-        // Update habit's streak and last completed
-        await db
-          .update(habits)
-          .set({
-            lastCompleted: now,
-            streak: habit.streak + 1,
-            longestStreak: Math.max(habit.longestStreak, habit.streak + 1),
-            updatedAt: now,
-          })
-          .where(eq(habits.id, id));
-      }
+    // If there's a log, delete it. If there isn't, create one.
+    if (existingLog) {
+      console.log(
+        "[API] Uncompleting habit:\n" +
+          JSON.stringify(
+            {
+              habitId: id,
+              logId: existingLog.id,
+            },
+            null,
+            2
+          )
+      );
+      await db.delete(habitLogs).where(eq(habitLogs.id, existingLog.id));
+
+      // Update habit's streak and last completed
+      await db
+        .update(habits)
+        .set({
+          lastCompleted: null,
+          streak: Math.max(0, habit.streak - 1),
+          updatedAt: now,
+        })
+        .where(eq(habits.id, id));
     } else {
-      // If marking as uncompleted and a log exists, delete it
-      if (existingLog) {
-        await db.delete(habitLogs).where(eq(habitLogs.id, existingLog.id));
+      console.log(
+        "[API] Completing habit:\n" +
+          JSON.stringify(
+            {
+              habitId: id,
+              timestamp: now,
+            },
+            null,
+            2
+          )
+      );
+      await db.insert(habitLogs).values({
+        id: crypto.randomUUID(),
+        habitId: id,
+        userId: input.userId,
+        completedAt: now,
+        value: null,
+        notes: null,
+        details: null,
+        difficulty: null,
+        feeling: null,
+        hasPhoto: false,
+        photoUrl: null,
+      });
 
-        // Update habit's streak and last completed
-        await db
-          .update(habits)
-          .set({
-            lastCompleted: null,
-            streak: Math.max(0, habit.streak - 1),
-            updatedAt: now,
-          })
-          .where(eq(habits.id, id));
-      }
+      // Update habit's streak and last completed
+      await db
+        .update(habits)
+        .set({
+          lastCompleted: now,
+          streak: habit.streak + 1,
+          longestStreak: Math.max(habit.longestStreak, habit.streak + 1),
+          updatedAt: now,
+        })
+        .where(eq(habits.id, id));
     }
 
     // Get the updated habit

@@ -17,6 +17,5 @@ export const habitLogInputSchema = z.object({
 }) satisfies z.ZodType<Omit<HabitLog, "id">>;
 
 export const toggleHabitSchema = z.object({
-  completed: z.boolean(),
   userId: z.string(),
 });

@@ -117,15 +117,11 @@ export async function deleteHabitLog(
   }
 }
 
-export async function toggleHabit(
-  habit: Habit,
-  isCompleted: boolean
-): Promise<Habit> {
+export async function toggleHabit(habit: Habit): Promise<Habit> {
   const response = await fetch(`/api/habits/${habit.id}/toggle`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      completed: !isCompleted,
       userId: habit.userId,
     }),
   });

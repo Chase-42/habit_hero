@@ -133,12 +133,7 @@ export function HabitList({
           {habits.map((habit) => (
             <div key={habit.id}>
               <HabitCard
-                habit={{
-                  ...habit,
-                  lastCompleted: isHabitCompletedToday(habit, habitLogs)
-                    ? new Date()
-                    : null,
-                }}
+                habit={habit}
                 onToggleComplete={() => onComplete(habit)}
                 onDelete={() => setHabitToDelete(habit)}
                 onExpand={() =>
