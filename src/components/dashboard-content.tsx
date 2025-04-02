@@ -13,23 +13,38 @@ import { HabitCalendar } from "~/components/habit-calendar";
 import { HabitList } from "~/components/habit-list";
 import { StreakHeatmap } from "~/components/streak-heatmap";
 import { StatsCards } from "~/components/stats-cards";
-import { useHabitOperations } from "~/hooks/use-habit-operations";
+import { useAddHabit, useDeleteHabit } from "~/hooks/use-habit-operations";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { Skeleton } from "~/components/ui/skeleton";
 import { fetchHabits } from "~/lib/api-client";
 import { fetchTodayHabitLogs } from "~/lib/habit-logs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { AddHabitModal } from "~/components/add-habit-modal";
+import { Button } from "~/components/ui/button";
+import { Plus } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "~/components/ui/alert-dialog";
 
 export function DashboardContent() {
   const { user } = useUser();
+  const [habitToDelete, setHabitToDelete] = useState<Habit | null>(null);
   const [completingHabits, setCompletingHabits] = useState<Set<string>>(
     new Set()
   );
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const queryClient = useQueryClient();
 
-  const { deletingHabits, deleteHabit } = useHabitOperations({
-    userId: user?.id ?? "",
-  });
+  const addHabitMutation = useAddHabit();
+  const deleteHabitMutation = useDeleteHabit();
 
   const { data: habits = [], isLoading } = useQuery({
     queryKey: ["habits"],
@@ -138,6 +153,40 @@ export function DashboardContent() {
     queryFn: () => fetchTodayHabitLogs(habits),
     enabled: !!habits,
   });
+
+  const handleAddHabit = async (
+    habit: Omit<
+      Habit,
+      "id" | "createdAt" | "updatedAt" | "streak" | "longestStreak"
+    >
+  ) => {
+    try {
+      await addHabitMutation.mutateAsync(habit);
+      toast.success("Habit created successfully!");
+    } catch (err) {
+      console.error("Error creating habit:", err);
+      toast.error("Failed to create habit. Please try again.");
+      throw err;
+    }
+  };
+
+  const handleDelete = async (): Promise<void> => {
+    if (!habitToDelete) return;
+
+    try {
+      queryClient.setQueryData<Habit[]>(["habits"], (old = []) =>
+        old.filter((h) => h.id !== habitToDelete.id)
+      );
+
+      await deleteHabitMutation.mutateAsync(habitToDelete.id);
+      toast.success(`${habitToDelete.name} deleted successfully`);
+      setHabitToDelete(null);
+    } catch (error) {
+      await queryClient.invalidateQueries({ queryKey: ["habits"] });
+      console.error("Error deleting habit:", error);
+      toast.error("Failed to delete habit. Please try again.");
+    }
+  };
 
   console.log(habits);
 
@@ -272,15 +321,17 @@ export function DashboardContent() {
                 Track and manage your daily habits
               </p>
             </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Calendar className="h-4 w-4" />
-              <span>
-                {new Date().toLocaleDateString("en-US", {
-                  weekday: "long",
-                  month: "long",
-                  day: "numeric",
-                })}
-              </span>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Calendar className="h-4 w-4" />
+                <span>
+                  {new Date().toLocaleDateString("en-US", {
+                    weekday: "long",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -332,10 +383,12 @@ export function DashboardContent() {
                         habits={todayHabits}
                         habitLogs={habitLogs}
                         onComplete={completeHabit}
-                        onDelete={deleteHabit}
+                        onDelete={async (habit) => {
+                          setHabitToDelete(habit);
+                          return Promise.resolve();
+                        }}
                         userId={user?.id ?? ""}
                         completingHabits={completingHabits}
-                        deletingHabits={deletingHabits}
                       />
                     </div>
                   </ScrollArea>
@@ -359,10 +412,12 @@ export function DashboardContent() {
                     habits={habits}
                     habitLogs={habitLogs}
                     onComplete={completeHabit}
-                    onDelete={deleteHabit}
+                    onDelete={async (habit) => {
+                      setHabitToDelete(habit);
+                      return Promise.resolve();
+                    }}
                     userId={user?.id ?? ""}
                     completingHabits={completingHabits}
-                    deletingHabits={deletingHabits}
                   />
                 </div>
               </CardContent>
@@ -384,6 +439,41 @@ export function DashboardContent() {
           </TabsContent>
         </Tabs>
       </div>
+
+      <AlertDialog
+        open={!!habitToDelete}
+        onOpenChange={(open) => !open && setHabitToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Habit</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete &quot;{habitToDelete?.name}&quot;?
+              This action cannot be undone and will permanently delete the habit
+              and all its history.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteHabitMutation.isPending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteHabitMutation.isPending}
+            >
+              {deleteHabitMutation.isPending ? (
+                <>
+                  <span className="mr-2">Deleting...</span>
+                  <span className="animate-spin">⏳</span>
+                </>
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }

@@ -30,6 +30,17 @@ import type { Habit } from "~/types";
 import { cn } from "~/lib/utils";
 import { FrequencyType } from "~/types/common/enums";
 import { useState } from "react";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "~/components/ui/alert-dialog";
 
 // Types
 type HabitCategory =
@@ -116,7 +127,7 @@ const CompletionButton = ({
             initial={{ scale: 0, rotate: -90 }}
             animate={{ scale: 1, rotate: 0 }}
             exit={{ scale: 0, rotate: 90 }}
-            transition={{ type: "spring", duration: 0.5 }}
+            transition={{ type: "spring", duration: 0.3 }}
           >
             <CheckCircle2 className="h-5 w-5" />
           </motion.div>
@@ -126,6 +137,7 @@ const CompletionButton = ({
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             exit={{ scale: 0 }}
+            transition={{ duration: 0.2 }}
             className="h-5 w-5 rounded-full border-2 border-current"
           />
         )}
@@ -139,7 +151,7 @@ const CompletionButton = ({
             ? { scale: [0.8, 1.4], opacity: [0.5, 0] }
             : { scale: 0, opacity: 0 }
         }
-        transition={{ duration: 0.4 }}
+        transition={{ duration: 0.2 }}
       />
     </motion.button>
   );

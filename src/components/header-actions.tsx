@@ -13,15 +13,30 @@ import { useState } from "react";
 import { Button } from "~/components/ui/button";
 import { ThemeToggle } from "~/components/theme-toggle";
 import { AddHabitModal } from "~/components/add-habit-modal";
-import { useHabitOperations } from "~/hooks/use-habit-operations";
+import { useAddHabit } from "~/hooks/use-habit-operations";
+import { toast } from "sonner";
+import type { Habit } from "~/types";
 
 export function HeaderActions() {
   const { user } = useUser();
-  const [isAddHabitOpen, setIsAddHabitOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const addHabitMutation = useAddHabit();
 
-  const { isLoading, addHabit } = useHabitOperations({
-    userId: user?.id ?? "",
-  });
+  const handleAddHabit = async (
+    habit: Omit<
+      Habit,
+      "id" | "createdAt" | "updatedAt" | "streak" | "longestStreak"
+    >
+  ) => {
+    try {
+      await addHabitMutation.mutateAsync(habit);
+      toast.success("Habit created successfully!");
+    } catch (err) {
+      console.error("Error creating habit:", err);
+      toast.error("Failed to create habit. Please try again.");
+      throw err;
+    }
+  };
 
   return (
     <>
@@ -35,8 +50,7 @@ export function HeaderActions() {
         </SignedOut>
         <SignedIn>
           <Button
-            onClick={() => setIsAddHabitOpen(true)}
-            disabled={isLoading}
+            onClick={() => setIsAddModalOpen(true)}
             size="sm"
             className="h-8 px-2 text-sm"
           >
@@ -50,9 +64,9 @@ export function HeaderActions() {
       </div>
 
       <AddHabitModal
-        open={isAddHabitOpen}
-        onOpenChange={setIsAddHabitOpen}
-        onAddHabit={addHabit}
+        open={isAddModalOpen}
+        onOpenChange={setIsAddModalOpen}
+        onAddHabit={handleAddHabit}
         userId={user?.id ?? ""}
       />
     </>

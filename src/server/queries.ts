@@ -86,11 +86,13 @@ export async function updateHabit(
 }
 
 export async function deleteHabit(habitId: string): Promise<void> {
-  // First delete all associated logs
-  await db.delete(habitLogs).where(eq(habitLogs.habitId, habitId));
+  await db.transaction(async (tx) => {
+    // First delete all associated logs
+    await tx.delete(habitLogs).where(eq(habitLogs.habitId, habitId));
 
-  // Then delete the habit
-  await db.delete(habits).where(eq(habits.id, habitId));
+    // Then delete the habit
+    await tx.delete(habits).where(eq(habits.id, habitId));
+  });
 }
 
 export async function getHabitById(id: string): Promise<Habit | null> {

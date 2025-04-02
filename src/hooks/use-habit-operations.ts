@@ -8,6 +8,8 @@ import {
   fetchHabitLogs,
 } from "~/lib/api-client";
 import { FrequencyType } from "~/types/common/enums";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { ApiResponse } from "~/types/api/validation";
 
 type NewHabit = Omit<
   Habit,
@@ -24,7 +26,6 @@ interface UseHabitOperationsState {
   isLoading: boolean;
   error: string | null;
   completingHabits: Set<string>;
-  deletingHabits: Set<string>;
   isInitialLoad: boolean;
 }
 
@@ -35,7 +36,6 @@ export function useHabitOperations({ userId }: UseHabitOperationsProps) {
     isLoading: false,
     error: null,
     completingHabits: new Set(),
-    deletingHabits: new Set(),
     isInitialLoad: true,
   });
 
@@ -192,7 +192,7 @@ export function useHabitOperations({ userId }: UseHabitOperationsProps) {
     });
 
     try {
-      await toggleHabit(habit, isCompleted);
+      await toggleHabit(habit);
     } catch (error) {
       // Revert optimistic updates on error
       setPartialState({
@@ -244,39 +244,29 @@ export function useHabitOperations({ userId }: UseHabitOperationsProps) {
   };
 
   const deleteHabit = async (habit: Habit) => {
-    // Add to deleting set
-    setPartialState({
-      deletingHabits: new Set([...state.deletingHabits, habit.id]),
-    });
-
     try {
-      const response = await fetch(`/api/habits/${habit.id}?userId=${userId}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to delete habit");
-      }
-
-      // Update local state
+      // Optimistically update UI
       setPartialState({
         habits: state.habits.filter((h) => h.id !== habit.id),
         habitLogs: state.habitLogs.filter((log) => log.habitId !== habit.id),
       });
 
-      toast.success(`${habit.name} deleted successfully`);
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to delete habit";
-      toast.error(errorMessage);
-      throw error;
-    } finally {
-      // Remove from deleting set
-      setPartialState({
-        deletingHabits: new Set(
-          [...state.deletingHabits].filter((id) => id !== habit.id)
-        ),
+      await fetch(`/api/habits/${habit.id}`, {
+        method: "DELETE",
       });
+
+      toast.success(`${habit.name} deleted successfully`);
+    } catch (err) {
+      // Revert optimistic update on error
+      setPartialState({
+        habits: [...state.habits],
+        habitLogs: [...state.habitLogs],
+      });
+
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to delete habit";
+      toast.error(errorMessage);
+      throw err;
     }
   };
 
@@ -308,4 +298,57 @@ export function useHabitOperations({ userId }: UseHabitOperationsProps) {
     getTodayHabits,
     refresh: loadInitialData,
   };
+}
+
+export function useAddHabit() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (habit: NewHabit): Promise<Habit> => {
+      const response = await fetch("/api/habits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(habit),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to create habit");
+      }
+
+      const result = (await response.json()) as ApiResponse<Habit>;
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
+      return result.data;
+    },
+    onSuccess: () => {
+      // Invalidate and refetch habits query
+      void queryClient.invalidateQueries({ queryKey: ["habits"] });
+    },
+  });
+}
+
+export function useDeleteHabit() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (habitId: string): Promise<void> => {
+      const response = await fetch(`/api/habits/${habitId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const result = (await response.json()) as ApiResponse<null>;
+        if (result.error) {
+          throw new Error(result.error.message);
+        }
+        throw new Error("Failed to delete habit");
+      }
+    },
+    onSuccess: () => {
+      // Invalidate both habits and habitLogs queries to refresh the UI
+      void queryClient.invalidateQueries({ queryKey: ["habits"] });
+      void queryClient.invalidateQueries({ queryKey: ["habitLogs"] });
+    },
+  });
 }
