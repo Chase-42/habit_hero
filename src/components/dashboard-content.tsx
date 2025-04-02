@@ -2,7 +2,7 @@
 
 import { Calendar } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { FrequencyType } from "~/types/common/enums";
 import { toggleHabit } from "~/lib/api-client";
 import type { Habit } from "~/types";
@@ -16,8 +16,7 @@ import { StatsCards } from "~/components/stats-cards";
 import { useAddHabit, useDeleteHabit } from "~/hooks/use-habit-operations";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { Skeleton } from "~/components/ui/skeleton";
-import { fetchHabits } from "~/lib/api-client";
-import { fetchTodayHabitLogs } from "~/lib/habit-logs";
+import { fetchHabits, fetchHabitLogs } from "~/lib/api-client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { AddHabitModal } from "~/components/add-habit-modal";
@@ -121,7 +120,11 @@ export function DashboardContent() {
         next.delete(habit.id);
         return next;
       });
-      await queryClient.invalidateQueries({ queryKey: ["habits"] });
+      // Invalidate both habits and logs queries
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["habits"] }),
+        queryClient.invalidateQueries({ queryKey: ["habitLogs"] }),
+      ]);
     },
   });
 
@@ -150,9 +153,55 @@ export function DashboardContent() {
 
   const { data: habitLogs = [], isLoading: isLoadingLogs } = useQuery({
     queryKey: ["habitLogs"],
-    queryFn: () => fetchTodayHabitLogs(habits),
+    queryFn: async () => {
+      console.log("[HABIT_LOGS] Starting fetch for all habits");
+      const today = new Date();
+      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+      // Set proper time for start and end dates
+      startOfMonth.setHours(0, 0, 0, 0);
+      endOfMonth.setHours(23, 59, 59, 999);
+
+      console.log("[HABIT_LOGS] Date range:", {
+        start: startOfMonth.toISOString(),
+        end: endOfMonth.toISOString(),
+      });
+
+      const logs = await Promise.all(
+        habits.map(async (habit) => {
+          console.log(
+            `[HABIT_LOGS] Fetching logs for habit: ${habit.name} (${habit.id})`
+          );
+          const habitLogs = await fetchHabitLogs(
+            habit.id,
+            startOfMonth,
+            endOfMonth
+          );
+          console.log(
+            `[HABIT_LOGS] Found ${habitLogs.length} logs for ${habit.name}`
+          );
+          return habitLogs;
+        })
+      );
+
+      const flattenedLogs = logs.flat();
+      console.log("[HABIT_LOGS] Total logs fetched:", flattenedLogs.length);
+      return flattenedLogs;
+    },
     enabled: !!habits,
+    staleTime: 1000 * 60 * 5, // Consider data stale after 5 minutes
   });
+
+  // Add logging for when habits change
+  useEffect(() => {
+    console.log("[HABITS] Habits updated:", habits.length);
+  }, [habits]);
+
+  // Add logging for when logs change
+  useEffect(() => {
+    console.log("[LOGS] Logs updated:", habitLogs.length);
+  }, [habitLogs]);
 
   const handleAddHabit = async (
     habit: Omit<
@@ -187,6 +236,116 @@ export function DashboardContent() {
       toast.error("Failed to delete habit. Please try again.");
     }
   };
+
+  const stats = useMemo(() => {
+    console.log(
+      "[DASHBOARD_STATS] Input data:",
+      JSON.stringify(
+        {
+          habitsCount: habits.length,
+          logsCount: habitLogs.length,
+          habits: habits.map((h) => ({
+            id: h.id,
+            name: h.name,
+            isActive: h.isActive,
+            isArchived: h.isArchived,
+            streak: h.streak,
+            lastCompleted: h.lastCompleted,
+          })),
+        },
+        null,
+        2
+      )
+    );
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Get active habits
+    const activeHabits = habits.filter((h) => !h.isArchived && h.isActive);
+
+    // Get completed habits for today
+    const completedToday = activeHabits.filter((habit) =>
+      habitLogs.some((log) => {
+        const completedAt = new Date(log.completedAt);
+        const logDate = new Date(
+          completedAt.getFullYear(),
+          completedAt.getMonth(),
+          completedAt.getDate()
+        );
+        const todayDate = new Date(
+          today.getFullYear(),
+          today.getMonth(),
+          today.getDate()
+        );
+        return (
+          log.habitId === habit.id && logDate.getTime() === todayDate.getTime()
+        );
+      })
+    );
+
+    // Calculate weekly progress
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - 6); // Last 7 days including today
+
+    const weeklyLogs = habitLogs.filter((log) => {
+      const completedAt = new Date(log.completedAt);
+      const logDate = new Date(
+        completedAt.getFullYear(),
+        completedAt.getMonth(),
+        completedAt.getDate()
+      );
+      const weekStartDate = new Date(
+        weekStart.getFullYear(),
+        weekStart.getMonth(),
+        weekStart.getDate()
+      );
+      const todayDate = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate()
+      );
+      return logDate >= weekStartDate && logDate <= todayDate;
+    });
+
+    // Calculate total possible completions for the week
+    const totalPossibleCompletions = activeHabits.length * 7;
+    const weeklyProgress =
+      totalPossibleCompletions > 0
+        ? Math.round((weeklyLogs.length / totalPossibleCompletions) * 100)
+        : 0;
+
+    const result = {
+      totalHabits: activeHabits.length,
+      completedToday: completedToday.length,
+      weeklyProgress,
+      currentStreak: Math.max(...activeHabits.map((h) => h.streak || 0)),
+    };
+
+    console.log(
+      "[DASHBOARD_STATS] Calculations:",
+      JSON.stringify(
+        {
+          today: today.toISOString(),
+          weekStart: weekStart.toISOString(),
+          activeHabits: activeHabits.map((h) => ({ id: h.id, name: h.name })),
+          completedToday: completedToday.map((h) => ({
+            id: h.id,
+            name: h.name,
+          })),
+          weeklyLogs: weeklyLogs.map((l) => ({
+            habitId: l.habitId,
+            completedAt: l.completedAt,
+          })),
+          result,
+        },
+        null,
+        2
+      )
+    );
+
+    return result;
+  }, [habits, habitLogs]);
 
   console.log(habits);
 
@@ -365,7 +524,15 @@ export function DashboardContent() {
                   </p>
                 </CardHeader>
                 <CardContent className="flex-1 px-3 pb-3">
-                  <StreakHeatmap habits={habits} habitLogs={habitLogs} />
+                  {(() => {
+                    console.log(
+                      "[COMPLETION_HISTORY] Rendering with logs:",
+                      habitLogs.length
+                    );
+                    return (
+                      <StreakHeatmap habits={habits} habitLogs={habitLogs} />
+                    );
+                  })()}
                 </CardContent>
               </Card>
 
@@ -433,7 +600,15 @@ export function DashboardContent() {
                 </p>
               </CardHeader>
               <CardContent className="px-2 pb-2">
-                <HabitCalendar habits={habits} habitLogs={habitLogs} />
+                {(() => {
+                  console.log(
+                    "[CALENDAR] Rendering with logs:",
+                    habitLogs.length
+                  );
+                  return (
+                    <HabitCalendar habits={habits} habitLogs={habitLogs} />
+                  );
+                })()}
               </CardContent>
             </Card>
           </TabsContent>

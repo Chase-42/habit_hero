@@ -31,11 +31,38 @@ export async function GET(request: Request) {
       const startDate = new Date(startDateStr);
       const endDate = new Date(endDateStr);
 
-      // Ensure start date is at beginning of day
-      startDate.setHours(0, 0, 0, 0);
+      // Create date-only versions for comparison
+      const startCompare = new Date(
+        startDate.getFullYear(),
+        startDate.getMonth(),
+        startDate.getDate(),
+        0,
+        0,
+        0,
+        0
+      );
+      const endCompare = new Date(
+        endDate.getFullYear(),
+        endDate.getMonth(),
+        endDate.getDate(),
+        23,
+        59,
+        59,
+        999
+      );
 
-      // Ensure end date is at end of day
-      endDate.setHours(23, 59, 59, 999);
+      console.log(
+        "[API] Fetching logs:",
+        JSON.stringify(
+          {
+            habitId,
+            startDate: startCompare.toISOString(),
+            endDate: endCompare.toISOString(),
+          },
+          null,
+          2
+        )
+      );
 
       logs = await db
         .select()
@@ -43,10 +70,25 @@ export async function GET(request: Request) {
         .where(
           and(
             eq(habitLogs.habitId, habitId),
-            between(habitLogs.completedAt, startDate, endDate)
+            between(habitLogs.completedAt, startCompare, endCompare)
           )
         )
         .orderBy(habitLogs.completedAt);
+
+      console.log(
+        "[API] Found logs:",
+        JSON.stringify(
+          {
+            count: logs.length,
+            logs: logs.map((l) => ({
+              id: l.id,
+              completedAt: l.completedAt,
+            })),
+          },
+          null,
+          2
+        )
+      );
     } else {
       logs = await db
         .select()

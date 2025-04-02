@@ -9,16 +9,44 @@ function calculateCurrentStreak(
   habits: Habit[],
   habitLogs: HabitLog[]
 ): number {
-  // Simple implementation - can be enhanced based on your streak calculation logic
-  return 3; // Placeholder for now
+  const activeHabits = habits.filter((h) => h.isActive && !h.isArchived);
+  return Math.max(0, ...activeHabits.map((h) => h.streak || 0));
 }
 
 function calculateWeeklyProgress(
   habits: Habit[],
   habitLogs: HabitLog[]
 ): number {
-  // Simple implementation - can be enhanced based on your progress calculation logic
-  return 23; // Placeholder for now
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const weekStart = new Date(today);
+  weekStart.setDate(today.getDate() - 6); // Last 7 days including today
+
+  const weeklyLogs = habitLogs.filter((log) => {
+    const completedAt = new Date(log.completedAt);
+    const logDate = new Date(
+      completedAt.getFullYear(),
+      completedAt.getMonth(),
+      completedAt.getDate()
+    );
+    const weekStartDate = new Date(
+      weekStart.getFullYear(),
+      weekStart.getMonth(),
+      weekStart.getDate()
+    );
+    const todayDate = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()
+    );
+    return logDate >= weekStartDate && logDate <= todayDate;
+  });
+
+  const activeHabits = habits.filter((h) => !h.isArchived && h.isActive);
+  const totalPossibleCompletions = activeHabits.length * 7;
+  return totalPossibleCompletions > 0
+    ? Math.round((weeklyLogs.length / totalPossibleCompletions) * 100)
+    : 0;
 }
 
 interface StatsCardsProps {
