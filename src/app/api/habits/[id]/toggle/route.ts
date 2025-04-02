@@ -5,10 +5,9 @@ import { and, between, eq } from "drizzle-orm";
 import { toggleHabitSchema } from "~/schemas";
 import type { RouteContext, RouteParams } from "~/types/route";
 import type { ApiResponse } from "~/types/api/validation";
+import type { Habit } from "~/types";
 
-type ToggleResponse = NextResponse<
-  ApiResponse<{ success: true }> | ApiResponse<null>
->;
+type ToggleResponse = NextResponse<ApiResponse<Habit> | ApiResponse<null>>;
 
 export async function PUT(
   request: Request,
@@ -112,8 +111,27 @@ export async function PUT(
       }
     }
 
-    return NextResponse.json<ApiResponse<{ success: true }>>({
-      data: { success: true },
+    // Get the updated habit
+    const [updatedHabit] = await db
+      .select()
+      .from(habits)
+      .where(eq(habits.id, id));
+
+    if (!updatedHabit) {
+      return NextResponse.json<ApiResponse<null>>(
+        {
+          data: null,
+          error: {
+            code: "NOT_FOUND",
+            message: "Updated habit not found",
+          },
+        },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json<ApiResponse<Habit>>({
+      data: updatedHabit,
     });
   } catch (error) {
     console.error("Error toggling habit:", error);

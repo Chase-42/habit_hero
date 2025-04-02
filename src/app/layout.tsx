@@ -1,6 +1,7 @@
 import { ClerkProvider } from "@clerk/nextjs";
 import { ThemeProvider } from "~/components/theme-provider";
 import { LoadingProvider } from "~/contexts/loading-context";
+import { QueryProvider } from "~/components/query-provider";
 import "~/styles/globals.css";
 
 export default function RootLayout({
@@ -25,7 +26,9 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             <LoadingProvider>
-              <div className="px-3">{children}</div>
+              <QueryProvider>
+                <div className="px-3">{children}</div>
+              </QueryProvider>
             </LoadingProvider>
           </ThemeProvider>
         </body>

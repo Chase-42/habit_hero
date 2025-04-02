@@ -120,7 +120,7 @@ export async function deleteHabitLog(
 export async function toggleHabit(
   habit: Habit,
   isCompleted: boolean
-): Promise<void> {
+): Promise<Habit> {
   const response = await fetch(`/api/habits/${habit.id}/toggle`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -130,9 +130,11 @@ export async function toggleHabit(
     }),
   });
 
-  const result = (await response.json()) as ApiResponse<void>;
+  const result = (await response.json()) as ApiResponse<Habit>;
 
   if (result.error) {
     throw new Error(result.error.message);
   }
+
+  return result.data;
 }
