@@ -7,32 +7,47 @@ type NewHabit = Omit<
 >;
 
 export async function fetchHabits(userId: string): Promise<Habit[]> {
-  const response = await fetch(`/api/habits?userId=${userId}`);
-  const result = (await response.json()) as ApiResponse<Habit[]>;
+  console.log("[API] Fetching habits for user:", userId);
+  try {
+    const response = await fetch(`/api/habits?userId=${userId}`);
+    console.log("[API] Habits response status:", response.status);
+    const result = (await response.json()) as ApiResponse<Habit[]>;
 
-  if (result.error) {
-    throw new Error(result.error.message);
+    if (result.error) {
+      console.error("[API] Habits fetch error:", result.error);
+      throw new Error(result.error.message);
+    }
+
+    return result.data;
+  } catch (error) {
+    console.error("[API] Habits fetch failed:", error);
+    throw error;
   }
-
-  return result.data;
 }
 
 export async function createHabit(habit: NewHabit): Promise<Habit> {
-  const response = await fetch("/api/habits", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(habit),
-  });
+  console.log("[API] Creating habit:", habit);
+  try {
+    const response = await fetch("/api/habits", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(habit),
+    });
+    console.log("[API] Create habit response status:", response.status);
+    const result = (await response.json()) as ApiResponse<Habit>;
 
-  const result = (await response.json()) as ApiResponse<Habit>;
+    if (result.error) {
+      console.error("[API] Create habit error:", result.error);
+      throw new Error(result.error.message);
+    }
 
-  if (result.error) {
-    throw new Error(result.error.message);
+    return result.data;
+  } catch (error) {
+    console.error("[API] Create habit failed:", error);
+    throw error;
   }
-
-  return result.data;
 }
 
 export async function completeHabit(habit: Habit): Promise<void> {
@@ -117,22 +132,27 @@ export async function deleteHabitLog(
   }
 }
 
-export async function toggleHabit(
-  habit: Habit,
-  isCompleted: boolean
-): Promise<void> {
-  const response = await fetch(`/api/habits/${habit.id}/toggle`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      completed: !isCompleted,
-      userId: habit.userId,
-    }),
-  });
+export async function toggleHabit(habit: Habit): Promise<Habit> {
+  console.log("[API] Toggling habit:", { id: habit.id, name: habit.name });
+  try {
+    const response = await fetch(`/api/habits/${habit.id}/toggle`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: habit.userId,
+      }),
+    });
+    console.log("[API] Toggle habit response status:", response.status);
+    const result = (await response.json()) as ApiResponse<Habit>;
 
-  const result = (await response.json()) as ApiResponse<void>;
+    if (result.error) {
+      console.error("[API] Toggle habit error:", result.error);
+      throw new Error(result.error.message);
+    }
 
-  if (result.error) {
-    throw new Error(result.error.message);
+    return result.data;
+  } catch (error) {
+    console.error("[API] Toggle habit failed:", error);
+    throw error;
   }
 }

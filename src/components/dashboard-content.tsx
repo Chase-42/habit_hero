@@ -1,0 +1,658 @@
+"use client";
+
+import { Calendar } from "lucide-react";
+import { useUser } from "@clerk/nextjs";
+import { useMemo, useState, useEffect } from "react";
+import { FrequencyType } from "~/types/common/enums";
+import { toggleHabit } from "~/lib/api-client";
+import type { Habit } from "~/types";
+
+import { Card, CardContent, CardHeader } from "~/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
+import { HabitCalendar } from "~/components/habit-calendar";
+import { HabitList } from "~/components/habit-list";
+import { StreakHeatmap } from "~/components/streak-heatmap";
+import { StatsCards } from "~/components/stats-cards";
+import { useAddHabit, useDeleteHabit } from "~/hooks/use-habit-operations";
+import { ScrollArea } from "~/components/ui/scroll-area";
+import { Skeleton } from "~/components/ui/skeleton";
+import { fetchHabits, fetchHabitLogs } from "~/lib/api-client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { AddHabitModal } from "~/components/add-habit-modal";
+import { Button } from "~/components/ui/button";
+import { Plus } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "~/components/ui/alert-dialog";
+
+export function DashboardContent() {
+  const { user } = useUser();
+  const [habitToDelete, setHabitToDelete] = useState<Habit | null>(null);
+  const [completingHabits, setCompletingHabits] = useState<Set<string>>(
+    new Set()
+  );
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const queryClient = useQueryClient();
+
+  const addHabitMutation = useAddHabit();
+  const deleteHabitMutation = useDeleteHabit();
+
+  const { data: habits = [], isLoading } = useQuery({
+    queryKey: ["habits"],
+    queryFn: async () => {
+      console.log("[FETCH] Starting habits fetch");
+      const data = await fetchHabits(user?.id ?? "");
+      console.log(
+        "[FETCH] Habits received:",
+        data.map((h) => ({
+          id: h.id,
+          name: h.name,
+          lastCompleted: h.lastCompleted,
+          streak: h.streak,
+        }))
+      );
+      return data;
+    },
+  });
+
+  const completeHabitMutation = useMutation({
+    mutationFn: async ({ habit }: { habit: Habit }) => {
+      console.log("[TOGGLE] Before toggle:", {
+        habitId: habit.id,
+        name: habit.name,
+        lastCompleted: habit.lastCompleted,
+      });
+      const result = await toggleHabit(habit);
+      console.log("[TOGGLE] After toggle:", {
+        habitId: result.id,
+        name: result.name,
+        lastCompleted: result.lastCompleted,
+      });
+      return result;
+    },
+    onMutate: async ({ habit }) => {
+      await queryClient.cancelQueries({ queryKey: ["habits"] });
+      const previousHabits = queryClient.getQueryData<Habit[]>(["habits"]);
+
+      queryClient.setQueryData<Habit[]>(["habits"], (old = []) =>
+        old.map((h) => {
+          if (h.id === habit.id) {
+            const updatedHabit = {
+              ...h,
+              lastCompleted: h.lastCompleted ? null : new Date(),
+            };
+            console.log("[OPTIMISTIC] Updating habit:", {
+              id: h.id,
+              name: h.name,
+              oldLastCompleted: h.lastCompleted,
+              newLastCompleted: updatedHabit.lastCompleted,
+            });
+            return updatedHabit;
+          }
+          return h;
+        })
+      );
+
+      setCompletingHabits((prev) => new Set([...prev, habit.id]));
+      return { previousHabits };
+    },
+    onError: (_, { habit }, context) => {
+      if (context?.previousHabits) {
+        queryClient.setQueryData(["habits"], context.previousHabits);
+      }
+      setCompletingHabits((prev) => {
+        const next = new Set(prev);
+        next.delete(habit.id);
+        return next;
+      });
+    },
+    onSettled: async (_, __, { habit }) => {
+      setCompletingHabits((prev) => {
+        const next = new Set(prev);
+        next.delete(habit.id);
+        return next;
+      });
+      // Invalidate both habits and logs queries
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["habits"] }),
+        queryClient.invalidateQueries({ queryKey: ["habitLogs"] }),
+      ]);
+    },
+  });
+
+  const completeHabit = async (habit: Habit) => {
+    await completeHabitMutation.mutateAsync({ habit });
+  };
+
+  const todayHabits = useMemo(() => {
+    const today = new Date().getDay();
+    return habits.filter((habit) => {
+      if (!habit.isActive || habit.isArchived) return false;
+
+      if (habit.frequencyType === FrequencyType.Daily) return true;
+
+      if (habit.frequencyType === FrequencyType.Weekly) {
+        return habit.frequencyValue.days?.includes(today) ?? false;
+      }
+
+      if (habit.frequencyType === FrequencyType.Monthly) {
+        return new Date().getDate() === 1;
+      }
+
+      return false;
+    });
+  }, [habits]);
+
+  const { data: habitLogs = [], isLoading: isLoadingLogs } = useQuery({
+    queryKey: ["habitLogs"],
+    queryFn: async () => {
+      console.log("[HABIT_LOGS] Starting fetch for all habits");
+      const today = new Date();
+      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+      // Set proper time for start and end dates
+      startOfMonth.setHours(0, 0, 0, 0);
+      endOfMonth.setHours(23, 59, 59, 999);
+
+      console.log("[HABIT_LOGS] Date range:", {
+        start: startOfMonth.toISOString(),
+        end: endOfMonth.toISOString(),
+      });
+
+      const logs = await Promise.all(
+        habits.map(async (habit) => {
+          console.log(
+            `[HABIT_LOGS] Fetching logs for habit: ${habit.name} (${habit.id})`
+          );
+          const habitLogs = await fetchHabitLogs(
+            habit.id,
+            startOfMonth,
+            endOfMonth
+          );
+          console.log(
+            `[HABIT_LOGS] Found ${habitLogs.length} logs for ${habit.name}`
+          );
+          return habitLogs;
+        })
+      );
+
+      const flattenedLogs = logs.flat();
+      console.log("[HABIT_LOGS] Total logs fetched:", flattenedLogs.length);
+      return flattenedLogs;
+    },
+    enabled: !!habits,
+    staleTime: 1000 * 60 * 5, // Consider data stale after 5 minutes
+  });
+
+  // Add logging for when habits change
+  useEffect(() => {
+    console.log("[HABITS] Habits updated:", habits.length);
+  }, [habits]);
+
+  // Add logging for when logs change
+  useEffect(() => {
+    console.log("[LOGS] Logs updated:", habitLogs.length);
+  }, [habitLogs]);
+
+  const handleAddHabit = async (
+    habit: Omit<
+      Habit,
+      "id" | "createdAt" | "updatedAt" | "streak" | "longestStreak"
+    >
+  ) => {
+    try {
+      await addHabitMutation.mutateAsync(habit);
+      toast.success("Habit created successfully!");
+    } catch (err) {
+      console.error("Error creating habit:", err);
+      toast.error("Failed to create habit. Please try again.");
+      throw err;
+    }
+  };
+
+  const handleDelete = async (): Promise<void> => {
+    if (!habitToDelete) return;
+
+    try {
+      queryClient.setQueryData<Habit[]>(["habits"], (old = []) =>
+        old.filter((h) => h.id !== habitToDelete.id)
+      );
+
+      await deleteHabitMutation.mutateAsync(habitToDelete.id);
+      toast.success(`${habitToDelete.name} deleted successfully`);
+      setHabitToDelete(null);
+    } catch (error) {
+      await queryClient.invalidateQueries({ queryKey: ["habits"] });
+      console.error("Error deleting habit:", error);
+      toast.error("Failed to delete habit. Please try again.");
+    }
+  };
+
+  const stats = useMemo(() => {
+    console.log(
+      "[DASHBOARD_STATS] Input data:",
+      JSON.stringify(
+        {
+          habitsCount: habits.length,
+          logsCount: habitLogs.length,
+          habits: habits.map((h) => ({
+            id: h.id,
+            name: h.name,
+            isActive: h.isActive,
+            isArchived: h.isArchived,
+            streak: h.streak,
+            lastCompleted: h.lastCompleted,
+          })),
+        },
+        null,
+        2
+      )
+    );
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Get active habits
+    const activeHabits = habits.filter((h) => !h.isArchived && h.isActive);
+
+    // Get completed habits for today
+    const completedToday = activeHabits.filter((habit) =>
+      habitLogs.some((log) => {
+        const completedAt = new Date(log.completedAt);
+        const logDate = new Date(
+          completedAt.getFullYear(),
+          completedAt.getMonth(),
+          completedAt.getDate()
+        );
+        const todayDate = new Date(
+          today.getFullYear(),
+          today.getMonth(),
+          today.getDate()
+        );
+        return (
+          log.habitId === habit.id && logDate.getTime() === todayDate.getTime()
+        );
+      })
+    );
+
+    // Calculate weekly progress
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - 6); // Last 7 days including today
+
+    const weeklyLogs = habitLogs.filter((log) => {
+      const completedAt = new Date(log.completedAt);
+      const logDate = new Date(
+        completedAt.getFullYear(),
+        completedAt.getMonth(),
+        completedAt.getDate()
+      );
+      const weekStartDate = new Date(
+        weekStart.getFullYear(),
+        weekStart.getMonth(),
+        weekStart.getDate()
+      );
+      const todayDate = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate()
+      );
+      return logDate >= weekStartDate && logDate <= todayDate;
+    });
+
+    // Calculate total possible completions for the week
+    const totalPossibleCompletions = activeHabits.length * 7;
+    const weeklyProgress =
+      totalPossibleCompletions > 0
+        ? Math.round((weeklyLogs.length / totalPossibleCompletions) * 100)
+        : 0;
+
+    const result = {
+      totalHabits: activeHabits.length,
+      completedToday: completedToday.length,
+      weeklyProgress,
+      currentStreak: Math.max(...activeHabits.map((h) => h.streak || 0)),
+    };
+
+    console.log(
+      "[DASHBOARD_STATS] Calculations:",
+      JSON.stringify(
+        {
+          today: today.toISOString(),
+          weekStart: weekStart.toISOString(),
+          activeHabits: activeHabits.map((h) => ({ id: h.id, name: h.name })),
+          completedToday: completedToday.map((h) => ({
+            id: h.id,
+            name: h.name,
+          })),
+          weeklyLogs: weeklyLogs.map((l) => ({
+            habitId: l.habitId,
+            completedAt: l.completedAt,
+          })),
+          result,
+        },
+        null,
+        2
+      )
+    );
+
+    return result;
+  }, [habits, habitLogs]);
+
+  console.log(habits);
+
+  if (isLoading) {
+    return (
+      <main className="flex h-[calc(100vh-5.5rem)] flex-col overflow-hidden">
+        <div className="border-b bg-background">
+          <div className="px-3 py-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <Skeleton className="h-7 w-32 sm:h-8" />
+                <Skeleton className="mt-1 h-4 w-48" />
+              </div>
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-4 w-32" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          <Tabs defaultValue="overview" className="space-y-3">
+            <TabsList className="w-full rounded-none px-3">
+              <TabsTrigger value="overview" className="flex-1 text-sm">
+                Overview
+              </TabsTrigger>
+              <TabsTrigger value="habits" className="flex-1 text-sm">
+                My Habits
+              </TabsTrigger>
+              <TabsTrigger value="calendar" className="flex-1 text-sm">
+                Calendar
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="overview" className="space-y-3">
+              <div className="grid grid-cols-2 gap-3 px-3 sm:grid-cols-2 md:grid-cols-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Card
+                    key={i}
+                    className="min-h-[140px] w-[289px] overflow-hidden rounded-sm"
+                  >
+                    <CardHeader className="px-3 pb-1 pt-2">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="mt-1 h-3 w-32" />
+                    </CardHeader>
+                    <CardContent className="px-3 pb-2">
+                      <Skeleton className="h-16 w-24" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 px-3 md:grid-cols-2">
+                <Card className="flex flex-col overflow-hidden rounded-sm">
+                  <CardHeader className="px-3 pb-2 pt-3">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="mt-1 h-3 w-48" />
+                  </CardHeader>
+                  <CardContent className="flex-1 px-3 pb-3">
+                    <Skeleton className="h-[300px] w-full" />
+                  </CardContent>
+                </Card>
+
+                <Card className="overflow-hidden rounded-sm">
+                  <CardHeader className="px-3 pb-2 pt-3">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="mt-1 h-3 w-32" />
+                  </CardHeader>
+                  <CardContent className="relative p-0">
+                    <ScrollArea className="h-[500px]">
+                      <div className="space-y-3 px-3 pb-3">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <div key={i} className="flex items-center gap-3">
+                            <Skeleton className="h-10 w-10 rounded-full" />
+                            <div className="flex-1 space-y-2">
+                              <Skeleton className="h-4 w-3/4" />
+                              <Skeleton className="h-3 w-1/2" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                    <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-background to-transparent" />
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="habits">
+              <Card className="mx-2 overflow-hidden rounded-sm">
+                <CardHeader className="px-2 pb-1.5 pt-2">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="mt-1 h-3 w-32" />
+                </CardHeader>
+                <CardContent className="px-2 pb-2">
+                  <div className="h-[500px] overflow-y-auto">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <div key={i} className="flex items-center gap-3 py-2">
+                        <Skeleton className="h-10 w-10 rounded-full" />
+                        <div className="flex-1 space-y-2">
+                          <Skeleton className="h-4 w-3/4" />
+                          <Skeleton className="h-3 w-1/2" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="calendar">
+              <Card className="mx-2 overflow-hidden rounded-sm">
+                <CardHeader className="px-2 pb-1.5 pt-2">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="mt-1 h-3 w-48" />
+                </CardHeader>
+                <CardContent className="px-2 pb-2">
+                  <Skeleton className="h-[400px] w-full" />
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="flex h-[calc(100vh-5.5rem)] flex-col overflow-hidden">
+      <div className="border-b bg-background">
+        <div className="px-3 py-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h1 className="text-lg font-semibold sm:text-2xl">Dashboard</h1>
+              <p className="text-sm text-muted-foreground">
+                Track and manage your daily habits
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Calendar className="h-4 w-4" />
+                <span>
+                  {new Date().toLocaleDateString("en-US", {
+                    weekday: "long",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto">
+        <Tabs defaultValue="overview" className="space-y-3">
+          <TabsList className="w-full rounded-none px-3">
+            <TabsTrigger value="overview" className="flex-1 text-sm">
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="habits" className="flex-1 text-sm">
+              My Habits
+            </TabsTrigger>
+            <TabsTrigger value="calendar" className="flex-1 text-sm">
+              Calendar
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="space-y-3">
+            <div className="grid grid-cols-2 gap-3 px-3 sm:grid-cols-2 md:grid-cols-4">
+              <StatsCards habits={habits} habitLogs={habitLogs} />
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 px-3 md:grid-cols-2">
+              <Card className="flex flex-col overflow-hidden rounded-sm">
+                <CardHeader className="px-3 pb-2 pt-3">
+                  <h3 className="text-sm font-medium">Completion History</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Your habit completion patterns over time
+                  </p>
+                </CardHeader>
+                <CardContent className="flex-1 px-3 pb-3">
+                  {(() => {
+                    console.log(
+                      "[COMPLETION_HISTORY] Rendering with logs:",
+                      habitLogs.length
+                    );
+                    return (
+                      <StreakHeatmap habits={habits} habitLogs={habitLogs} />
+                    );
+                  })()}
+                </CardContent>
+              </Card>
+
+              <Card className="overflow-hidden rounded-sm">
+                <CardHeader className="px-3 pb-2 pt-3">
+                  <h3 className="text-sm font-medium">Today&apos;s Habits</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Habits to complete today
+                  </p>
+                </CardHeader>
+                <CardContent className="relative p-0">
+                  <ScrollArea className="h-[400px]">
+                    <div className="space-y-3 px-3 pb-3">
+                      <HabitList
+                        habits={todayHabits}
+                        habitLogs={habitLogs}
+                        onComplete={completeHabit}
+                        onDelete={async (habit) => {
+                          setHabitToDelete(habit);
+                          return Promise.resolve();
+                        }}
+                        userId={user?.id ?? ""}
+                        completingHabits={completingHabits}
+                      />
+                    </div>
+                  </ScrollArea>
+                  <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-background to-transparent" />
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="habits">
+            <Card className="mx-2 overflow-hidden rounded-sm">
+              <CardHeader className="px-2 pb-1.5 pt-2">
+                <h3 className="text-sm font-medium">All Habits</h3>
+                <p className="text-xs text-muted-foreground">
+                  Manage all your habits
+                </p>
+              </CardHeader>
+              <CardContent className="px-2 pb-2">
+                <div className="h-[500px] overflow-y-auto">
+                  <HabitList
+                    habits={habits}
+                    habitLogs={habitLogs}
+                    onComplete={completeHabit}
+                    onDelete={async (habit) => {
+                      setHabitToDelete(habit);
+                      return Promise.resolve();
+                    }}
+                    userId={user?.id ?? ""}
+                    completingHabits={completingHabits}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="calendar">
+            <Card className="mx-2 overflow-hidden rounded-sm">
+              <CardHeader className="px-2 pb-1.5 pt-2">
+                <h3 className="text-sm font-medium">Habit Calendar</h3>
+                <p className="text-xs text-muted-foreground">
+                  View your habit completion history
+                </p>
+              </CardHeader>
+              <CardContent className="px-2 pb-2">
+                {(() => {
+                  console.log(
+                    "[CALENDAR] Rendering with logs:",
+                    habitLogs.length
+                  );
+                  return (
+                    <HabitCalendar habits={habits} habitLogs={habitLogs} />
+                  );
+                })()}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      <AlertDialog
+        open={!!habitToDelete}
+        onOpenChange={(open) => !open && setHabitToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Habit</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete &quot;{habitToDelete?.name}&quot;?
+              This action cannot be undone and will permanently delete the habit
+              and all its history.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteHabitMutation.isPending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteHabitMutation.isPending}
+            >
+              {deleteHabitMutation.isPending ? (
+                <>
+                  <span className="mr-2">Deleting...</span>
+                  <span className="animate-spin">⏳</span>
+                </>
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </main>
+  );
+}

@@ -1,8 +1,8 @@
-import type React from "react";
-import { ThemeProvider } from "~/components/theme-provider";
-import "./globals.css";
-import { Toaster } from "~/components/ui/sonner";
 import { ClerkProvider } from "@clerk/nextjs";
+import { ThemeProvider } from "~/components/theme-provider";
+import { LoadingProvider } from "~/contexts/loading-context";
+import { QueryProvider } from "~/components/query-provider";
+import "~/styles/globals.css";
 
 export default function RootLayout({
   children,
@@ -13,27 +13,24 @@ export default function RootLayout({
     <ClerkProvider>
       <html lang="en" suppressHydrationWarning>
         <head>
-          <title>HabitHero - Track Your Habits</title>
           <meta
-            name="description"
-            content="A modern habit tracking application"
-          />
-          <script
-            dangerouslySetInnerHTML={{
-              __html: `
-          (function() {
-            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            const storedTheme = localStorage.getItem('habit-hero-theme');
-            const theme = storedTheme || (prefersDark ? 'dark' : 'light');
-            document.documentElement.classList.add(theme);
-          })()
-        `,
-            }}
+            name="viewport"
+            content="width=device-width, initial-scale=1.0"
           />
         </head>
-        <body className="min-h-screen bg-background">
-          <ThemeProvider>{children}</ThemeProvider>
-          <Toaster closeButton position="top-center" />
+        <body className="min-h-screen bg-background antialiased">
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <LoadingProvider>
+              <QueryProvider>
+                <div className="px-3">{children}</div>
+              </QueryProvider>
+            </LoadingProvider>
+          </ThemeProvider>
         </body>
       </html>
     </ClerkProvider>

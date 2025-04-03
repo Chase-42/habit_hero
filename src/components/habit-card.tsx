@@ -29,6 +29,18 @@ import {
 import type { Habit } from "~/types";
 import { cn } from "~/lib/utils";
 import { FrequencyType } from "~/types/common/enums";
+import { useState } from "react";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "~/components/ui/alert-dialog";
 
 // Types
 type HabitCategory =
@@ -48,6 +60,7 @@ interface HabitCardProps {
   onArchive?: () => void;
   onToggleReminder?: () => void;
   onViewStats?: () => void;
+  isLoading?: boolean;
 }
 
 // Constants
@@ -72,50 +85,77 @@ const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 const CompletionButton = ({
   isCompleted,
   onClick,
+  isLoading,
 }: {
   isCompleted: boolean;
   onClick: () => void;
-}) => (
-  <motion.button
-    className={cn(
-      "relative flex h-10 w-10 items-center justify-center rounded-full transition-colors",
-      isCompleted
-        ? "bg-green-500 text-white"
-        : "bg-muted text-muted-foreground hover:bg-muted/80"
-    )}
-    onClick={onClick}
-    whileTap={{ scale: 0.9 }}
-  >
-    <AnimatePresence mode="wait">
-      {isCompleted ? (
-        <motion.div
-          key="check"
-          initial={{ scale: 0, rotate: -90 }}
-          animate={{ scale: 1, rotate: 0 }}
-          exit={{ scale: 0, rotate: 90 }}
-          transition={{ type: "spring", duration: 0.5 }}
-        >
-          <CheckCircle2 className="h-5 w-5" />
-        </motion.div>
-      ) : (
-        <motion.div
-          key="circle"
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          exit={{ scale: 0 }}
-          className="h-5 w-5 rounded-full border-2 border-current"
-        />
-      )}
-    </AnimatePresence>
+  isLoading?: boolean;
+}) => {
+  const [isAnimating, setIsAnimating] = useState(false);
 
-    <motion.div
-      className="absolute inset-0 rounded-full bg-green-500"
+  const handleClick = () => {
+    if (isAnimating || isLoading) return;
+    setIsAnimating(true);
+    onClick();
+  };
+
+  return (
+    <motion.button
+      className={cn(
+        "relative flex h-10 w-10 items-center justify-center rounded-full transition-colors",
+        isCompleted
+          ? "bg-green-500 text-white"
+          : "bg-muted text-muted-foreground hover:bg-muted/80",
+        (isAnimating || isLoading) && "opacity-80"
+      )}
+      onClick={handleClick}
+      whileTap={{ scale: 0.9 }}
       initial={false}
-      animate={isCompleted ? { scale: [0.8, 1.4], opacity: [0.5, 0] } : {}}
-      transition={{ duration: 0.4 }}
-    />
-  </motion.button>
-);
+      animate={{
+        backgroundColor: isCompleted ? "rgb(34 197 94)" : "var(--muted)",
+        color: isCompleted ? "white" : "var(--muted-foreground)",
+      }}
+    >
+      <AnimatePresence
+        mode="wait"
+        initial={false}
+        onExitComplete={() => setIsAnimating(false)}
+      >
+        {isCompleted ? (
+          <motion.div
+            key="check"
+            initial={{ scale: 0, rotate: -90 }}
+            animate={{ scale: 1, rotate: 0 }}
+            exit={{ scale: 0, rotate: 90 }}
+            transition={{ type: "spring", duration: 0.3 }}
+          >
+            <CheckCircle2 className="h-5 w-5" />
+          </motion.div>
+        ) : (
+          <motion.div
+            key="circle"
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            exit={{ scale: 0 }}
+            transition={{ duration: 0.2 }}
+            className="h-5 w-5 rounded-full border-2 border-current"
+          />
+        )}
+      </AnimatePresence>
+
+      <motion.div
+        className="absolute inset-0 rounded-full bg-green-500"
+        initial={false}
+        animate={
+          isCompleted
+            ? { scale: [0.8, 1.4], opacity: [0.5, 0] }
+            : { scale: 0, opacity: 0 }
+        }
+        transition={{ duration: 0.2 }}
+      />
+    </motion.button>
+  );
+};
 
 const ExpandedContent = ({ habit }: { habit: Habit }) => (
   <div className="mt-4 space-y-3 border-t border-border/50 pt-4">
@@ -198,8 +238,30 @@ export function HabitCard({
   onArchive,
   onToggleReminder,
   onViewStats,
+  isLoading,
 }: HabitCardProps) {
-  const isCompleted = habit.lastCompleted !== null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const lastCompleted = habit.lastCompleted
+    ? new Date(habit.lastCompleted)
+    : null;
+  const isCompleted = lastCompleted ? lastCompleted >= today : false;
+
+  console.log(
+    "[HABIT-CARD] State:\n" +
+      JSON.stringify(
+        {
+          habitId: habit.id,
+          habitName: habit.name,
+          lastCompleted,
+          today,
+          isCompleted,
+          rawLastCompleted: habit.lastCompleted,
+        },
+        null,
+        2
+      )
+  );
 
   return (
     <Card
@@ -254,6 +316,7 @@ export function HabitCard({
             <CompletionButton
               isCompleted={isCompleted}
               onClick={onToggleComplete}
+              isLoading={isLoading}
             />
 
             <div className="flex">

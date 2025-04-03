@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Checkbox } from "~/components/ui/checkbox";
-import { Icons } from "~/components/icons";
+import { LoadingSpinner } from "~/components/ui/loading-spinner";
 
 export function LoginForm() {
   const router = useRouter();
@@ -73,7 +73,7 @@ export function LoginForm() {
         </label>
       </div>
       <Button className="w-full" type="submit" disabled={isLoading}>
-        {isLoading && <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />}
+        {isLoading && <LoadingSpinner size={16} className="mr-2" />}
         Sign in
       </Button>
     </form>

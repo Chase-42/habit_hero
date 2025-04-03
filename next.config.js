@@ -12,6 +12,18 @@ const config = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination: "/api/:path*",
+      },
+      {
+        source: "/(.*)",
+        destination: "/$1",
+      },
+    ];
+  },
 };
 
 export default config;

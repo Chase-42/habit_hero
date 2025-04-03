@@ -6,9 +6,12 @@ import { z } from "zod";
 import type { ApiResponse } from "~/types/api/validation";
 
 export async function GET() {
+  console.log("[API] GET /api/habits - Start");
   try {
     const { userId } = await auth();
+    console.log("[API] GET /api/habits - User ID:", userId);
     if (!userId) {
+      console.log("[API] GET /api/habits - Unauthorized");
       return NextResponse.json<ApiResponse<null>>(
         {
           data: null,
@@ -21,9 +24,14 @@ export async function GET() {
       );
     }
     const habits = await getHabits(userId);
+    console.log(
+      "[API] GET /api/habits - Success, found",
+      habits.length,
+      "habits"
+    );
     return NextResponse.json<ApiResponse<typeof habits>>({ data: habits });
   } catch (error) {
-    console.error("Error fetching habits:", error);
+    console.error("[API] GET /api/habits - Error:", error);
     return NextResponse.json<ApiResponse<null>>(
       {
         data: null,
@@ -42,9 +50,12 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  console.log("[API] POST /api/habits - Start");
   try {
     const { userId } = await auth();
+    console.log("[API] POST /api/habits - User ID:", userId);
     if (!userId) {
+      console.log("[API] POST /api/habits - Unauthorized");
       return NextResponse.json<ApiResponse<null>>(
         {
           data: null,
@@ -60,17 +71,22 @@ export async function POST(request: Request) {
     const body = (await request.json()) as unknown as z.infer<
       typeof newHabitSchema
     >;
+    console.log("[API] POST /api/habits - Request body:", body);
     const habit = newHabitSchema.parse(body);
     const createdHabit = await createHabit({
       ...habit,
       userId,
       lastCompleted: null,
     });
+    console.log(
+      "[API] POST /api/habits - Success, created habit:",
+      createdHabit.id
+    );
     return NextResponse.json<ApiResponse<typeof createdHabit>>({
       data: createdHabit,
     });
   } catch (error) {
-    console.error("Error creating habit:", error);
+    console.error("[API] POST /api/habits - Error:", error);
     if (error instanceof z.ZodError) {
       return NextResponse.json<ApiResponse<null>>(
         {

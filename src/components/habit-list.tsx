@@ -3,18 +3,8 @@
 import { useState } from "react";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { HabitCard } from "~/components/habit-card";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "~/components/ui/alert-dialog";
 import type { Habit, HabitLog } from "~/types";
-import { toast } from "sonner";
+import { AnimatePresence, motion } from "framer-motion";
 
 // Types
 export interface HabitListProps {
@@ -29,53 +19,7 @@ export interface HabitListProps {
   showAll?: boolean;
   userId: string;
   completingHabits?: Set<string>;
-  deletingHabits?: Set<string>;
 }
-
-// Components
-const DeleteHabitDialog = ({
-  habit,
-  isOpen,
-  isDeleting,
-  onConfirm,
-  onOpenChange,
-}: {
-  habit: Habit | null;
-  isOpen: boolean;
-  isDeleting: boolean;
-  onConfirm: () => void;
-  onOpenChange: (isOpen: boolean) => void;
-}) => (
-  <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
-    <AlertDialogContent>
-      <AlertDialogHeader>
-        <AlertDialogTitle>Delete Habit</AlertDialogTitle>
-        <AlertDialogDescription>
-          Are you sure you want to delete &quot;{habit?.name}&quot;? This action
-          cannot be undone and will permanently delete the habit and all its
-          history.
-        </AlertDialogDescription>
-      </AlertDialogHeader>
-      <AlertDialogFooter>
-        <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-        <AlertDialogAction
-          onClick={onConfirm}
-          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-          disabled={isDeleting}
-        >
-          {isDeleting ? (
-            <>
-              <span className="mr-2">Deleting...</span>
-              <span className="animate-spin">⏳</span>
-            </>
-          ) : (
-            "Delete"
-          )}
-        </AlertDialogAction>
-      </AlertDialogFooter>
-    </AlertDialogContent>
-  </AlertDialog>
-);
 
 // Utility functions
 const isHabitCompletedToday = (
@@ -104,42 +48,36 @@ export function HabitList({
   showAll = false,
   userId,
   completingHabits = new Set(),
-  deletingHabits = new Set(),
 }: HabitListProps) {
   const [expandedHabitId, setExpandedHabitId] = useState<string | null>(null);
-  const [habitToDelete, setHabitToDelete] = useState<Habit | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  const handleDelete = async () => {
-    if (!habitToDelete) return;
-
-    setIsDeleting(true);
-    try {
-      await onDelete(habitToDelete);
-      toast.success(`${habitToDelete.name} deleted successfully`);
-    } catch {
-      toast.error("Failed to delete habit. Please try again.");
-    } finally {
-      setIsDeleting(false);
-      setHabitToDelete(null);
-    }
-  };
 
   return (
-    <>
-      <ScrollArea className={showAll ? "h-[500px]" : "h-auto"}>
-        <div className="space-y-3 p-1">
+    <ScrollArea className={showAll ? "h-[500px]" : "h-auto"}>
+      <div className="space-y-3 p-1">
+        <AnimatePresence initial={false} mode="sync">
           {habits.map((habit) => (
-            <div key={habit.id}>
+            <motion.div
+              key={habit.id}
+              layout
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{
+                opacity: 0,
+                x: -100,
+                transition: {
+                  duration: 0.2,
+                  ease: "easeInOut",
+                },
+              }}
+              transition={{
+                duration: 0.2,
+                ease: "easeOut",
+              }}
+            >
               <HabitCard
-                habit={{
-                  ...habit,
-                  lastCompleted: isHabitCompletedToday(habit, habitLogs)
-                    ? new Date()
-                    : null,
-                }}
+                habit={habit}
                 onToggleComplete={() => onComplete(habit)}
-                onDelete={() => setHabitToDelete(habit)}
+                onDelete={() => onDelete(habit)}
                 onExpand={() =>
                   setExpandedHabitId((id) =>
                     id === habit.id ? null : habit.id
@@ -153,20 +91,11 @@ export function HabitList({
                 }
                 onViewStats={onViewStats ? () => onViewStats(habit) : undefined}
                 isLoading={completingHabits.has(habit.id)}
-                isDeleting={deletingHabits.has(habit.id)}
               />
-            </div>
+            </motion.div>
           ))}
-        </div>
-      </ScrollArea>
-
-      <DeleteHabitDialog
-        habit={habitToDelete}
-        isOpen={habitToDelete !== null}
-        isDeleting={isDeleting}
-        onConfirm={handleDelete}
-        onOpenChange={(isOpen) => !isOpen && setHabitToDelete(null)}
-      />
-    </>
+        </AnimatePresence>
+      </div>
+    </ScrollArea>
   );
 }

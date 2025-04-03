@@ -1,53 +1,34 @@
-import { Plus, ChevronRight } from "lucide-react";
-import { SignInButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
+"use client";
+
 import Link from "next/link";
+import { ChevronRight } from "lucide-react";
+import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
 
 import { Button } from "~/components/ui/button";
 import { ThemeToggle } from "~/components/theme-toggle";
+import { HeaderActions } from "~/components/header-actions";
 
-interface HeaderProps {
-  onAddHabit: () => void;
-  isLoading?: boolean;
-}
-
-export function Header({ onAddHabit, isLoading = false }: HeaderProps) {
+export function Header() {
   return (
     <header className="sticky top-0 z-10 border-b bg-background">
-      <div className="container flex h-16 items-center justify-between py-4">
-        <div className="flex items-center gap-2">
-          <Link href="/" className="text-2xl font-bold hover:text-primary">
+      <div className="flex h-14 items-center justify-between px-3">
+        <div className="flex items-center gap-1.5">
+          <Link
+            href="/"
+            className="text-lg font-bold hover:text-primary sm:text-xl"
+          >
             HabitHero
           </Link>
           <SignedIn>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <ChevronRight className="h-4 w-4" />
+            <div className="hidden items-center gap-1.5 text-sm text-muted-foreground sm:flex">
+              <ChevronRight className="h-3.5 w-3.5" />
               <Link href="/" className="hover:text-foreground">
                 Dashboard
               </Link>
             </div>
           </SignedIn>
         </div>
-        <div className="flex items-center gap-2">
-          <SignedOut>
-            <SignInButton mode="modal">
-              <Button variant="default">Sign In</Button>
-            </SignInButton>
-          </SignedOut>
-          <SignedIn>
-            <Button onClick={onAddHabit} disabled={isLoading} size="sm">
-              <Plus className="mr-2 h-4 w-4" />
-              Add Habit
-            </Button>
-            <ThemeToggle />
-            <UserButton />
-          </SignedIn>
-          {/* <Link href="/settings">
-            <Button variant="ghost" size="icon">
-              <Settings className="h-5 w-5" />
-              <span className="sr-only">Settings</span>
-            </Button>
-          </Link> */}
-        </div>
+        <HeaderActions />
       </div>
     </header>
   );

@@ -173,16 +173,30 @@ export async function DELETE(
   try {
     const { id } = await context.params;
     const habit = await getHabitById(id);
-    if (!habit || habit.userId !== userId) {
+
+    if (!habit) {
       return NextResponse.json<ApiResponse<null>>(
         {
           data: null,
           error: {
             code: "NOT_FOUND",
-            message: "Habit not found or unauthorized",
+            message: "Habit not found",
           },
         },
         { status: 404 }
+      );
+    }
+
+    if (habit.userId !== userId) {
+      return NextResponse.json<ApiResponse<null>>(
+        {
+          data: null,
+          error: {
+            code: "FORBIDDEN",
+            message: "You don't have permission to delete this habit",
+          },
+        },
+        { status: 403 }
       );
     }
 
@@ -192,6 +206,29 @@ export async function DELETE(
     });
   } catch (error) {
     console.error("Error deleting habit:", error);
+
+    // Handle specific database errors
+    if (error instanceof Error) {
+      if (error.message.includes("foreign key constraint")) {
+        return NextResponse.json<ApiResponse<null>>(
+          {
+            data: null,
+            error: {
+              code: "CONSTRAINT_ERROR",
+              message: "Cannot delete habit due to existing references",
+              details: [
+                {
+                  field: "database",
+                  message: error.message,
+                },
+              ],
+            },
+          },
+          { status: 409 }
+        );
+      }
+    }
+
     return NextResponse.json<ApiResponse<null>>(
       {
         data: null,
