@@ -48,19 +48,23 @@ export function DashboardContent() {
   const { data: habits = [], isLoading } = useQuery({
     queryKey: ["habits"],
     queryFn: async () => {
-      console.log("[FETCH] Starting habits fetch");
-      const data = await fetchHabits(user?.id ?? "");
-      console.log(
-        "[FETCH] Habits received:",
-        data.map((h) => ({
-          id: h.id,
-          name: h.name,
-          lastCompleted: h.lastCompleted,
-          streak: h.streak,
-        }))
-      );
-      return data;
+      const response = await fetchHabits(user?.id ?? "");
+      return response;
     },
+  });
+
+  const { data: fetchedHabitLogs = [] } = useQuery({
+    queryKey: ["habitLogs"],
+    queryFn: async () => {
+      const today = new Date();
+      const startDate = new Date(today);
+      startDate.setDate(today.getDate() - 30); // Last 30 days
+      const response = await Promise.all(
+        habits.map((habit) => fetchHabitLogs(habit.id, startDate, today))
+      );
+      return response.flat();
+    },
+    enabled: habits.length > 0,
   });
 
   const completeHabitMutation = useMutation({
@@ -474,85 +478,86 @@ export function DashboardContent() {
   }
 
   return (
-    <main className="flex h-[calc(100vh-5.5rem)] flex-col overflow-hidden">
-      <div className="border-b bg-background">
-        <div className="px-3 py-3">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h1 className="text-lg font-semibold sm:text-2xl">Dashboard</h1>
-              <p className="text-sm text-muted-foreground">
-                Track and manage your daily habits
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Calendar className="h-4 w-4" />
-                <span>
-                  {new Date().toLocaleDateString("en-US", {
-                    weekday: "long",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </span>
-              </div>
+    <main className="flex h-screen flex-col">
+      <header className="border-b bg-background px-4 py-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-lg font-semibold sm:text-2xl">Dashboard</h1>
+            <p className="text-sm text-muted-foreground">
+              Track and manage your daily habits
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
+            <Button
+              onClick={() => setIsAddModalOpen(true)}
+              variant="default"
+              className="flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Add Habit
+            </Button>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Calendar className="h-4 w-4" />
+              <span>
+                {new Date().toLocaleDateString("en-US", {
+                  weekday: "long",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </span>
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
-      <div className="flex-1 overflow-y-auto">
-        <Tabs defaultValue="overview" className="space-y-3">
-          <TabsList className="w-full rounded-none px-3">
-            <TabsTrigger value="overview" className="flex-1 text-sm">
+      <div className="min-h-0 flex-1">
+        <Tabs defaultValue="overview" className="flex h-full flex-col">
+          <TabsList className="flex-none border-b px-4">
+            <TabsTrigger value="overview" className="flex-1">
               Overview
             </TabsTrigger>
-            <TabsTrigger value="habits" className="flex-1 text-sm">
+            <TabsTrigger value="habits" className="flex-1">
               My Habits
             </TabsTrigger>
-            <TabsTrigger value="calendar" className="flex-1 text-sm">
+            <TabsTrigger value="calendar" className="flex-1">
               Calendar
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="space-y-3">
-            <div className="grid grid-cols-2 gap-3 px-3 sm:grid-cols-2 md:grid-cols-4">
-              <StatsCards habits={habits} habitLogs={habitLogs} />
+          <TabsContent
+            value="overview"
+            className="flex min-h-0 flex-1 flex-col space-y-4 p-4"
+          >
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <StatsCards habits={habits} habitLogs={fetchedHabitLogs} />
             </div>
 
-            <div className="grid grid-cols-1 gap-3 px-3 md:grid-cols-2">
-              <Card className="flex flex-col overflow-hidden rounded-sm">
-                <CardHeader className="px-3 pb-2 pt-3">
+            <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-2">
+              <Card className="flex flex-col">
+                <CardHeader className="flex-none">
                   <h3 className="text-sm font-medium">Completion History</h3>
                   <p className="text-xs text-muted-foreground">
                     Your habit completion patterns over time
                   </p>
                 </CardHeader>
-                <CardContent className="flex-1 px-3 pb-3">
-                  {(() => {
-                    console.log(
-                      "[COMPLETION_HISTORY] Rendering with logs:",
-                      habitLogs.length
-                    );
-                    return (
-                      <StreakHeatmap habits={habits} habitLogs={habitLogs} />
-                    );
-                  })()}
+                <CardContent className="min-h-0 flex-1">
+                  <StreakHeatmap habits={habits} habitLogs={fetchedHabitLogs} />
                 </CardContent>
               </Card>
 
-              <Card className="overflow-hidden rounded-sm">
-                <CardHeader className="px-3 pb-2 pt-3">
+              <Card className="flex flex-col">
+                <CardHeader className="flex-none">
                   <h3 className="text-sm font-medium">Today&apos;s Habits</h3>
                   <p className="text-xs text-muted-foreground">
                     Habits to complete today
                   </p>
                 </CardHeader>
-                <CardContent className="relative p-0">
-                  <ScrollArea className="h-[400px]">
-                    <div className="space-y-3 px-3 pb-3">
+                <CardContent className="relative min-h-0 flex-1 p-0">
+                  <ScrollArea className="h-full">
+                    <div className="space-y-3 p-4">
                       <HabitList
                         habits={todayHabits}
-                        habitLogs={habitLogs}
+                        habitLogs={fetchedHabitLogs}
                         onComplete={completeHabit}
                         onDelete={async (habit) => {
                           setHabitToDelete(habit);
@@ -563,92 +568,84 @@ export function DashboardContent() {
                       />
                     </div>
                   </ScrollArea>
-                  <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-background to-transparent" />
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-background to-transparent" />
                 </CardContent>
               </Card>
             </div>
           </TabsContent>
 
-          <TabsContent value="habits">
-            <Card className="mx-2 overflow-hidden rounded-sm">
-              <CardHeader className="px-2 pb-1.5 pt-2">
+          <TabsContent value="habits" className="min-h-0 flex-1 p-4">
+            <Card className="flex h-full flex-col">
+              <CardHeader className="flex-none">
                 <h3 className="text-sm font-medium">All Habits</h3>
                 <p className="text-xs text-muted-foreground">
                   Manage all your habits
                 </p>
               </CardHeader>
-              <CardContent className="px-2 pb-2">
-                <div className="h-[500px] overflow-y-auto">
-                  <HabitList
-                    habits={habits}
-                    habitLogs={habitLogs}
-                    onComplete={completeHabit}
-                    onDelete={async (habit) => {
-                      setHabitToDelete(habit);
-                      return Promise.resolve();
-                    }}
-                    userId={user?.id ?? ""}
-                    completingHabits={completingHabits}
-                  />
-                </div>
+              <CardContent className="min-h-0 flex-1">
+                <ScrollArea className="h-full">
+                  <div className="space-y-3">
+                    <HabitList
+                      habits={habits}
+                      habitLogs={fetchedHabitLogs}
+                      onComplete={completeHabit}
+                      onDelete={async (habit) => {
+                        setHabitToDelete(habit);
+                        return Promise.resolve();
+                      }}
+                      userId={user?.id ?? ""}
+                      completingHabits={completingHabits}
+                    />
+                  </div>
+                </ScrollArea>
               </CardContent>
             </Card>
           </TabsContent>
 
-          <TabsContent value="calendar">
-            <Card className="mx-2 overflow-hidden rounded-sm">
-              <CardHeader className="px-2 pb-1.5 pt-2">
+          <TabsContent value="calendar" className="min-h-0 flex-1 p-4">
+            <Card className="flex h-full flex-col">
+              <CardHeader className="flex-none">
                 <h3 className="text-sm font-medium">Habit Calendar</h3>
                 <p className="text-xs text-muted-foreground">
                   View your habit completion history
                 </p>
               </CardHeader>
-              <CardContent className="px-2 pb-2">
-                {(() => {
-                  console.log(
-                    "[CALENDAR] Rendering with logs:",
-                    habitLogs.length
-                  );
-                  return (
-                    <HabitCalendar habits={habits} habitLogs={habitLogs} />
-                  );
-                })()}
+              <CardContent className="min-h-0 flex-1">
+                <ScrollArea className="h-full">
+                  <HabitCalendar habits={habits} habitLogs={fetchedHabitLogs} />
+                </ScrollArea>
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
       </div>
 
+      <AddHabitModal
+        open={isAddModalOpen}
+        onOpenChange={setIsAddModalOpen}
+        onAddHabit={handleAddHabit}
+        userId={user?.id ?? ""}
+      />
+
       <AlertDialog
         open={!!habitToDelete}
-        onOpenChange={(open) => !open && setHabitToDelete(null)}
+        onOpenChange={() => setHabitToDelete(null)}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Habit</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete &quot;{habitToDelete?.name}&quot;?
-              This action cannot be undone and will permanently delete the habit
-              and all its history.
+              Are you sure you want to delete this habit? This action cannot be
+              undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteHabitMutation.isPending}>
-              Cancel
-            </AlertDialogCancel>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              disabled={deleteHabitMutation.isPending}
             >
-              {deleteHabitMutation.isPending ? (
-                <>
-                  <span className="mr-2">Deleting...</span>
-                  <span className="animate-spin">⏳</span>
-                </>
-              ) : (
-                "Delete"
-              )}
+              Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
