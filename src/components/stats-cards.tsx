@@ -127,53 +127,86 @@ export function StatsCards({ habits, habitLogs }: StatsCardsProps) {
 
   return (
     <>
-      <div className="rounded-lg border bg-card p-4 text-card-foreground">
-        <h3 className="text-base font-medium">Total Habits</h3>
-        <div className="mt-2">
-          <div className="text-4xl font-bold">{habits.length}</div>
-          <div className="mt-1 text-sm text-muted-foreground">
-            Active habits
+      <Card
+        key={0}
+        className="min-h-[120px] w-[289px] overflow-hidden rounded-sm"
+      >
+        <CardContent className="flex h-full flex-row items-center gap-4 p-6">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+            <Target className="h-6 w-6 text-primary" />
           </div>
-        </div>
-      </div>
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground">Total Habits</p>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-bold">{habits.length}</span>
+              <span className="text-sm text-muted-foreground">active</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-      <div className="rounded-lg border bg-card p-4 text-card-foreground">
-        <h3 className="text-base font-medium">Complete Today</h3>
-        <div className="mt-2">
-          <div className="text-4xl font-bold">
-            {completedToday.length} / {todayHabits.length}
+      <Card
+        key={1}
+        className="min-h-[120px] w-[289px] overflow-hidden rounded-sm"
+      >
+        <CardContent className="flex h-full flex-row items-center gap-4 p-6">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+            <Activity className="h-6 w-6 text-primary" />
           </div>
-          <div className="mt-1 text-sm text-muted-foreground">
-            {Math.round((completedToday.length / todayHabits.length) * 100) ||
-              0}
-            % complete
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground">
+              Today&apos;s Progress
+            </p>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-bold">
+                {Math.round(
+                  (completedToday.length / todayHabits.length) * 100
+                ) || 0}
+                %
+              </span>
+              <span className="text-sm text-muted-foreground">
+                {completedToday.length}/{todayHabits.length}
+              </span>
+            </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      <div className="rounded-lg border bg-card p-4 text-card-foreground">
-        <h3 className="text-base font-medium">Current Streak</h3>
-        <div className="mt-2">
-          <div className="text-4xl font-bold">{currentStreak}</div>
-          <div className="mt-1 text-sm text-muted-foreground">
-            days in
-            <br />a row
+      <Card
+        key={2}
+        className="min-h-[120px] w-[289px] overflow-hidden rounded-sm"
+      >
+        <CardContent className="flex h-full flex-row items-center gap-4 p-6">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+            <Trophy className="h-6 w-6 text-primary" />
           </div>
-        </div>
-      </div>
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground">Current Streak</p>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-bold">{currentStreak}</span>
+              <span className="text-sm text-muted-foreground">days</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-      <div className="rounded-lg border bg-card p-4 text-card-foreground">
-        <h3 className="text-base font-medium">Weekly Progress</h3>
-        <div className="mt-2">
-          <div className="text-4xl font-bold">{weeklyProgress}%</div>
-          <div className="mt-1 text-sm text-muted-foreground">
-            Last 7<br />
-            days completion
-            <br />
-            rate
+      <Card
+        key={3}
+        className="min-h-[120px] w-[289px] overflow-hidden rounded-sm"
+      >
+        <CardContent className="flex h-full flex-row items-center gap-4 p-6">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+            <Calendar className="h-6 w-6 text-primary" />
           </div>
-        </div>
-      </div>
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground">Weekly Progress</p>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-bold">{weeklyProgress}%</span>
+              <span className="text-sm text-muted-foreground">completed</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </>
   );
 }

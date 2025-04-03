@@ -351,7 +351,7 @@ export function DashboardContent() {
 
   if (isLoading) {
     return (
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex h-[calc(100vh-5.5rem)] flex-col overflow-hidden">
         <div className="border-b bg-background">
           <div className="px-3 py-3">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -366,7 +366,7 @@ export function DashboardContent() {
           </div>
         </div>
 
-        <div className="pt-3">
+        <div className="flex-1 overflow-y-auto">
           <Tabs defaultValue="overview" className="space-y-3">
             <TabsList className="w-full rounded-none px-3">
               <TabsTrigger value="overview" className="flex-1 text-sm">
@@ -383,26 +383,29 @@ export function DashboardContent() {
             <TabsContent value="overview" className="space-y-3">
               <div className="grid grid-cols-2 gap-3 px-3 sm:grid-cols-2 md:grid-cols-4">
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <Card key={i} className="overflow-hidden rounded-sm">
-                    <CardHeader className="px-3 pb-2 pt-3">
+                  <Card
+                    key={i}
+                    className="min-h-[140px] w-[289px] overflow-hidden rounded-sm"
+                  >
+                    <CardHeader className="px-3 pb-1 pt-2">
                       <Skeleton className="h-4 w-24" />
                       <Skeleton className="mt-1 h-3 w-32" />
                     </CardHeader>
-                    <CardContent className="px-3 pb-3">
-                      <Skeleton className="h-8 w-16" />
+                    <CardContent className="px-3 pb-2">
+                      <Skeleton className="h-16 w-24" />
                     </CardContent>
                   </Card>
                 ))}
               </div>
 
               <div className="grid grid-cols-1 gap-3 px-3 md:grid-cols-2">
-                <Card className="overflow-hidden rounded-sm">
+                <Card className="flex flex-col overflow-hidden rounded-sm">
                   <CardHeader className="px-3 pb-2 pt-3">
                     <Skeleton className="h-4 w-32" />
                     <Skeleton className="mt-1 h-3 w-48" />
                   </CardHeader>
-                  <CardContent className="px-3 pb-3">
-                    <Skeleton className="h-[200px] w-full" />
+                  <CardContent className="flex-1 px-3 pb-3">
+                    <Skeleton className="h-[300px] w-full" />
                   </CardContent>
                 </Card>
 
@@ -411,20 +414,21 @@ export function DashboardContent() {
                     <Skeleton className="h-4 w-32" />
                     <Skeleton className="mt-1 h-3 w-32" />
                   </CardHeader>
-                  <CardContent className="p-0">
-                    <ScrollArea className="h-[300px]">
+                  <CardContent className="relative p-0">
+                    <ScrollArea className="h-[500px]">
                       <div className="space-y-3 px-3 pb-3">
-                        {Array.from({ length: 3 }).map((_, i) => (
+                        {Array.from({ length: 5 }).map((_, i) => (
                           <div key={i} className="flex items-center gap-3">
-                            <Skeleton className="h-8 w-8 rounded-full" />
+                            <Skeleton className="h-10 w-10 rounded-full" />
                             <div className="flex-1 space-y-2">
-                              <Skeleton className="h-4 w-32" />
-                              <Skeleton className="h-3 w-24" />
+                              <Skeleton className="h-4 w-3/4" />
+                              <Skeleton className="h-3 w-1/2" />
                             </div>
                           </div>
                         ))}
                       </div>
                     </ScrollArea>
+                    <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-background to-transparent" />
                   </CardContent>
                 </Card>
               </div>
@@ -440,10 +444,10 @@ export function DashboardContent() {
                   <div className="h-[500px] overflow-y-auto">
                     {Array.from({ length: 5 }).map((_, i) => (
                       <div key={i} className="flex items-center gap-3 py-2">
-                        <Skeleton className="h-8 w-8 rounded-full" />
+                        <Skeleton className="h-10 w-10 rounded-full" />
                         <div className="flex-1 space-y-2">
-                          <Skeleton className="h-4 w-32" />
-                          <Skeleton className="h-3 w-24" />
+                          <Skeleton className="h-4 w-3/4" />
+                          <Skeleton className="h-3 w-1/2" />
                         </div>
                       </div>
                     ))}
@@ -470,7 +474,7 @@ export function DashboardContent() {
   }
 
   return (
-    <main className="flex h-[calc(100vh-4rem)] flex-col overflow-hidden">
+    <main className="flex h-[calc(100vh-5.5rem)] flex-col overflow-hidden">
       <div className="border-b bg-background">
         <div className="px-3 py-3">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
