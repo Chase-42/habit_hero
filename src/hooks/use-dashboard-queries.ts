@@ -2,6 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchHabits, fetchHabitLogs } from "~/lib/api-client";
 import type { Habit, HabitLog } from "~/types";
 import { FrequencyType } from "~/types/common/enums";
+import {
+  isWithinInterval,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+} from "date-fns";
 
 interface DashboardData {
   habits: Habit[];
@@ -65,14 +72,22 @@ export function useDashboardData(userId: string) {
     return habitsQuery.data.filter((habit) => {
       if (!habit.isActive || habit.isArchived) return false;
 
-      if (habit.frequencyType === FrequencyType.Daily) return true;
+      if (habit.frequencyType === FrequencyType.DAILY) return true;
 
-      if (habit.frequencyType === FrequencyType.Weekly) {
-        return habit.frequencyValue.days?.includes(today) ?? false;
+      if (habit.frequencyType === FrequencyType.WEEKLY) {
+        const now = new Date();
+        return isWithinInterval(now, {
+          start: startOfWeek(now),
+          end: endOfWeek(now),
+        });
       }
 
-      if (habit.frequencyType === FrequencyType.Monthly) {
-        return new Date().getDate() === 1;
+      if (habit.frequencyType === FrequencyType.MONTHLY) {
+        const now = new Date();
+        return isWithinInterval(now, {
+          start: startOfMonth(now),
+          end: endOfMonth(now),
+        });
       }
 
       return false;
