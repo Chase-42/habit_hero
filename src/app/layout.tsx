@@ -1,3 +1,4 @@
+import "reflect-metadata";
 import { ClerkProvider } from "@clerk/nextjs";
 import { ThemeProvider } from "~/components/theme-provider";
 import { LoadingProvider } from "~/contexts/loading-context";

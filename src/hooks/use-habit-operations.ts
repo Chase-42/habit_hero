@@ -10,6 +10,17 @@ import {
 import { FrequencyType } from "~/types/common/enums";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ApiResponse } from "~/types/api/validation";
+import {
+  isWithinInterval,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  startOfDay,
+  isSameDay,
+} from "date-fns";
+import { eq } from "drizzle-orm";
+import { db } from "~/lib/db";
 
 type NewHabit = Omit<
   Habit,
@@ -18,141 +29,41 @@ type NewHabit = Omit<
 
 interface UseHabitOperationsProps {
   userId: string;
-}
-
-interface UseHabitOperationsState {
   habits: Habit[];
   habitLogs: HabitLog[];
-  isLoading: boolean;
-  error: string | null;
-  completingHabits: Set<string>;
-  isInitialLoad: boolean;
+  onHabitsChange: (habits: Habit[]) => void;
+  onLogsChange: (logs: HabitLog[]) => void;
 }
 
-export function useHabitOperations({ userId }: UseHabitOperationsProps) {
-  const [state, setState] = useState<UseHabitOperationsState>({
-    habits: [],
-    habitLogs: [],
-    isLoading: false,
-    error: null,
-    completingHabits: new Set(),
-    isInitialLoad: true,
-  });
+export function useHabitOperations({
+  userId,
+  habits,
+  habitLogs,
+  onHabitsChange,
+  onLogsChange,
+}: UseHabitOperationsProps) {
+  const [completingHabits, setCompletingHabits] = useState<Set<string>>(
+    new Set()
+  );
 
-  const setPartialState = (
-    partial:
-      | Partial<UseHabitOperationsState>
-      | ((prev: UseHabitOperationsState) => Partial<UseHabitOperationsState>)
-  ) => {
-    setState((prev) => ({
-      ...prev,
-      ...(typeof partial === "function" ? partial(prev) : partial),
-    }));
-  };
-
-  useEffect(() => {
-    if (!userId) return;
-    void loadInitialData();
-  }, [userId]);
-
-  const loadInitialData = async () => {
-    setPartialState({ isLoading: true, error: null });
-
-    try {
-      // Load habits first
-      const habits = await fetchHabits(userId);
-      setPartialState({ habits });
-
-      // Load only today's logs initially for faster first render
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-
-      const todayLogs = await Promise.all(
-        habits.map(async (habit) => {
-          const logs = await fetchHabitLogs(habit.id, today, tomorrow);
-          return logs;
-        })
-      );
-      setPartialState({
-        habitLogs: todayLogs.flat(),
-        isInitialLoad: false,
-      });
-
-      // Load recent logs in the background
-      void loadRecentLogs(habits);
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Failed to load habits";
-      setPartialState({ error: errorMessage });
-      toast.error(errorMessage);
-    } finally {
-      setPartialState({ isLoading: false });
-    }
-  };
-
-  const loadRecentLogs = async (habits: Habit[]) => {
-    const recentEndDate = new Date();
-    const recentStartDate = new Date();
-    recentStartDate.setDate(recentStartDate.getDate() - 14);
-
-    try {
-      const recentLogs = await Promise.all(
-        habits.map(async (habit) => {
-          const logs = await fetchHabitLogs(
-            habit.id,
-            recentStartDate,
-            recentEndDate
-          );
-          return logs;
-        })
-      );
-
-      // Merge with existing logs, avoiding duplicates
-      setPartialState((prev) => {
-        const existingLogIds = new Set(prev.habitLogs.map((log) => log.id));
-        const newLogs = recentLogs
-          .flat()
-          .filter((log) => !existingLogIds.has(log.id));
-        return {
-          habitLogs: [...prev.habitLogs, ...newLogs],
-        };
-      });
-    } catch (err) {
-      console.error("Error loading recent logs:", err);
-    }
-  };
-
-  const addHabit = async (newHabit: NewHabit) => {
-    try {
-      const habit = await createHabit(newHabit);
-      setPartialState({
-        habits: [...state.habits, habit],
-      });
-      toast.success("Habit created successfully!");
-      return habit;
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Failed to create habit";
-      toast.error(errorMessage);
-      throw err;
-    }
+  const isHabitCompletedToday = (habitId: string) => {
+    const today = startOfDay(new Date());
+    return habitLogs.some(
+      (log) =>
+        log.habitId === habitId && isSameDay(log.completedAt as Date, today)
+    );
   };
 
   const completeHabit = async (habit: Habit) => {
-    const isCompleted = habit.lastCompleted !== null;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = startOfDay(new Date());
+    const isCompleted = isHabitCompletedToday(habit.id);
 
     // Add to completing set
-    setPartialState({
-      completingHabits: new Set([...state.completingHabits, habit.id]),
-    });
+    setCompletingHabits((prev) => new Set([...prev, habit.id]));
 
-    // Optimistically update UI
-    setPartialState({
-      habits: state.habits.map((h) =>
+    try {
+      // Update habits
+      const updatedHabits = habits.map((h) =>
         h.id === habit.id
           ? {
               ...h,
@@ -160,130 +71,76 @@ export function useHabitOperations({ userId }: UseHabitOperationsProps) {
               lastCompleted: isCompleted ? null : today,
             }
           : h
-      ),
-    });
+      );
+      onHabitsChange(updatedHabits);
 
-    // Update logs state
-    setPartialState({
-      habitLogs: isCompleted
-        ? state.habitLogs.filter(
-            (log) =>
-              log.habitId !== habit.id ||
-              new Date(log.completedAt).setHours(0, 0, 0, 0) !== today.getTime()
-          )
-        : [
-            ...state.habitLogs,
-            {
-              id: crypto.randomUUID(),
-              habitId: habit.id,
-              userId: habit.userId,
-              completedAt: today,
-              value: null,
-              notes: null,
-              details: null,
-              difficulty: null,
-              feeling: null,
-              hasPhoto: false,
-              photoUrl: null,
-              createdAt: new Date(),
-              updatedAt: new Date(),
-            },
-          ],
-    });
+      // Update logs
+      if (isCompleted) {
+        // Remove today's log
+        const updatedLogs = habitLogs.filter(
+          (log) =>
+            log.habitId !== habit.id ||
+            !isSameDay(log.completedAt as Date, today)
+        );
+        onLogsChange(updatedLogs);
+      } else {
+        // Add new log
+        const newLog: HabitLog = {
+          id: crypto.randomUUID(),
+          habitId: habit.id,
+          userId: habit.userId,
+          completedAt: today,
+          value: null,
+          notes: null,
+          details: null,
+          difficulty: null,
+          feeling: null,
+          hasPhoto: false,
+          photoUrl: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        onLogsChange([...habitLogs, newLog]);
+      }
 
-    try {
+      // Call the API
       await toggleHabit(habit);
     } catch (error) {
-      // Revert optimistic updates on error
-      setPartialState({
-        habits: state.habits.map((h) =>
-          h.id === habit.id
-            ? {
-                ...h,
-                streak: isCompleted ? h.streak + 1 : h.streak - 1,
-                lastCompleted: isCompleted ? today : null,
-              }
-            : h
-        ),
-        habitLogs: isCompleted
-          ? [
-              ...state.habitLogs,
-              {
-                id: crypto.randomUUID(),
-                habitId: habit.id,
-                userId: habit.userId,
-                completedAt: today,
-                value: null,
-                notes: null,
-                details: null,
-                difficulty: null,
-                feeling: null,
-                hasPhoto: false,
-                photoUrl: null,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-              },
-            ]
-          : state.habitLogs.filter(
-              (log) =>
-                log.habitId !== habit.id ||
-                new Date(log.completedAt).setHours(0, 0, 0, 0) !==
-                  today.getTime()
-            ),
-      });
-
+      // Revert changes on error
+      onHabitsChange(habits);
+      onLogsChange(habitLogs);
       toast.error("Failed to update habit. Please try again.");
     } finally {
       // Remove from completing set
-      setPartialState({
-        completingHabits: new Set(
-          [...state.completingHabits].filter((id) => id !== habit.id)
-        ),
+      setCompletingHabits((prev) => {
+        const next = new Set(prev);
+        next.delete(habit.id);
+        return next;
       });
-    }
-  };
-
-  const deleteHabit = async (habit: Habit) => {
-    try {
-      // Optimistically update UI
-      setPartialState({
-        habits: state.habits.filter((h) => h.id !== habit.id),
-        habitLogs: state.habitLogs.filter((log) => log.habitId !== habit.id),
-      });
-
-      await fetch(`/api/habits/${habit.id}`, {
-        method: "DELETE",
-      });
-
-      toast.success(`${habit.name} deleted successfully`);
-    } catch (err) {
-      // Revert optimistic update on error
-      setPartialState({
-        habits: [...state.habits],
-        habitLogs: [...state.habitLogs],
-      });
-
-      const errorMessage =
-        err instanceof Error ? err.message : "Failed to delete habit";
-      toast.error(errorMessage);
-      throw err;
     }
   };
 
   const getTodayHabits = () => {
     const today = new Date().getDay();
-    return state.habits.filter((habit) => {
+    return habits.filter((habit) => {
       if (!habit.isActive || habit.isArchived) return false;
 
-      if (habit.frequencyType === FrequencyType.Daily) return true;
+      if (habit.frequencyType === FrequencyType.DAILY) return true;
 
-      if (habit.frequencyType === FrequencyType.Weekly) {
-        return habit.frequencyValue.days?.includes(today) ?? false;
+      if (habit.frequencyType === FrequencyType.WEEKLY) {
+        const now = new Date();
+        return isWithinInterval(now, {
+          start: startOfWeek(now),
+          end: endOfWeek(now),
+        });
       }
 
-      // For monthly habits, show them on the 1st of each month
-      if (habit.frequencyType === FrequencyType.Monthly) {
-        return new Date().getDate() === 1;
+      if (habit.frequencyType === FrequencyType.MONTHLY) {
+        const now = new Date();
+        return isWithinInterval(now, {
+          start: startOfMonth(now),
+          end: endOfMonth(now),
+        });
       }
 
       return false;
@@ -291,12 +148,9 @@ export function useHabitOperations({ userId }: UseHabitOperationsProps) {
   };
 
   return {
-    ...state,
-    addHabit,
+    completingHabits,
     completeHabit,
-    deleteHabit,
     getTodayHabits,
-    refresh: loadInitialData,
   };
 }
 
@@ -333,7 +187,7 @@ export function useDeleteHabit() {
 
   return useMutation({
     mutationFn: async (habitId: string): Promise<void> => {
-      const response = await fetch(`/api/habits/${habitId}`, {
+      const response = await fetch(`/api/habits/${habitId}?id=${habitId}`, {
         method: "DELETE",
       });
 

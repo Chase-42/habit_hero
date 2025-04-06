@@ -72,17 +72,22 @@ interface ColorOption {
 }
 
 const categories: CategoryOption[] = [
-  { value: HabitCategory.Fitness, label: "Fitness" },
-  { value: HabitCategory.Nutrition, label: "Nutrition" },
-  { value: HabitCategory.Mindfulness, label: "Mindfulness" },
-  { value: HabitCategory.Productivity, label: "Productivity" },
-  { value: HabitCategory.Other, label: "Other" },
+  { value: HabitCategory.HEALTH, label: "Health" },
+  { value: HabitCategory.FITNESS, label: "Fitness" },
+  { value: HabitCategory.MENTAL, label: "Mental" },
+  { value: HabitCategory.PRODUCTIVITY, label: "Productivity" },
+  { value: HabitCategory.RELATIONSHIPS, label: "Relationships" },
+  { value: HabitCategory.FINANCE, label: "Finance" },
+  { value: HabitCategory.EDUCATION, label: "Education" },
+  { value: HabitCategory.CREATIVITY, label: "Creativity" },
+  { value: HabitCategory.SPIRITUAL, label: "Spiritual" },
+  { value: HabitCategory.OTHER, label: "Other" },
 ];
 
-const frequencies: FrequencyOption[] = [
-  { value: FrequencyType.Daily, label: "Daily" },
-  { value: FrequencyType.Weekly, label: "Weekly" },
-  { value: FrequencyType.Monthly, label: "Monthly" },
+const frequencyOptions: FrequencyOption[] = [
+  { value: FrequencyType.DAILY, label: "Daily" },
+  { value: FrequencyType.WEEKLY, label: "Weekly" },
+  { value: FrequencyType.MONTHLY, label: "Monthly" },
 ];
 
 const days: Day[] = [
@@ -96,11 +101,11 @@ const days: Day[] = [
 ];
 
 const colors: ColorOption[] = [
-  { value: HabitColor.Red, label: "Red", class: "bg-red-500" },
-  { value: HabitColor.Blue, label: "Blue", class: "bg-blue-500" },
-  { value: HabitColor.Green, label: "Green", class: "bg-green-500" },
-  { value: HabitColor.Purple, label: "Purple", class: "bg-purple-500" },
-  { value: HabitColor.Orange, label: "Orange", class: "bg-orange-500" },
+  { value: HabitColor.RED, label: "Red", class: "bg-red-500" },
+  { value: HabitColor.BLUE, label: "Blue", class: "bg-blue-500" },
+  { value: HabitColor.GREEN, label: "Green", class: "bg-green-500" },
+  { value: HabitColor.PURPLE, label: "Purple", class: "bg-purple-500" },
+  { value: HabitColor.ORANGE, label: "Orange", class: "bg-orange-500" },
 ];
 
 export function AddHabitModal({
@@ -111,14 +116,14 @@ export function AddHabitModal({
 }: AddHabitModalProps) {
   const [name, setName] = useState("");
   const [category, setCategory] = useState<CategoryOption["value"]>(
-    HabitCategory.Other
+    HabitCategory.OTHER
   );
-  const [frequencyType, setFrequencyType] = useState<FrequencyOption["value"]>(
-    FrequencyType.Daily
+  const [frequencyType, setFrequencyType] = useState<FrequencyType>(
+    FrequencyType.DAILY
   );
   const [selectedDays, setSelectedDays] = useState<number[]>([]);
   const [timesPerFrequency, setTimesPerFrequency] = useState(1);
-  const [color, setColor] = useState<ColorOption["value"]>(HabitColor.Blue);
+  const [color, setColor] = useState<ColorOption["value"]>(HabitColor.BLUE);
   const [reminderTime, setReminderTime] = useState<string | undefined>();
   const [goal, setGoal] = useState<number | null>(null);
   const [notes, setNotes] = useState<string | null>(null);
@@ -127,11 +132,11 @@ export function AddHabitModal({
 
   const resetForm = () => {
     setName("");
-    setCategory(HabitCategory.Other);
-    setFrequencyType(FrequencyType.Daily);
+    setCategory(HabitCategory.OTHER);
+    setFrequencyType(FrequencyType.DAILY);
     setSelectedDays([]);
     setTimesPerFrequency(1);
-    setColor(HabitColor.Blue);
+    setColor(HabitColor.BLUE);
     setReminderTime(undefined);
     setGoal(null);
     setNotes(null);
@@ -147,7 +152,7 @@ export function AddHabitModal({
       return;
     }
 
-    if (frequencyType === FrequencyType.Weekly && selectedDays.length === 0) {
+    if (frequencyType === FrequencyType.WEEKLY && selectedDays.length === 0) {
       alert("Please select at least one day for weekly habits");
       return;
     }
@@ -158,7 +163,7 @@ export function AddHabitModal({
       category,
       frequencyType,
       frequencyValue: {
-        days: frequencyType === FrequencyType.Weekly ? selectedDays : [],
+        days: frequencyType === FrequencyType.WEEKLY ? selectedDays : [],
         times: timesPerFrequency,
       },
       color,
@@ -258,12 +263,10 @@ export function AddHabitModal({
             <label className="text-sm font-medium">Frequency</label>
             <RadioGroup
               value={frequencyType}
-              onValueChange={(value: FrequencyOption["value"]) =>
-                setFrequencyType(value)
-              }
+              onValueChange={(value: FrequencyType) => setFrequencyType(value)}
               className="flex flex-col space-y-1"
             >
-              {frequencies.map((frequency) => (
+              {frequencyOptions.map((frequency) => (
                 <div
                   key={frequency.value}
                   className="flex items-center space-x-3"
@@ -290,7 +293,7 @@ export function AddHabitModal({
             />
           </div>
 
-          {frequencyType === FrequencyType.Weekly && (
+          {frequencyType === FrequencyType.WEEKLY && (
             <div className="space-y-3">
               <label className="text-sm font-medium">Select Days</label>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">

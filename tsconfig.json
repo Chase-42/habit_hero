@@ -23,10 +23,15 @@
     "plugins": [{ "name": "next" }],
     "incremental": true,
 
+    /* Decorators */
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+
     /* Path Aliases */
     "baseUrl": ".",
     "paths": {
-      "~/*": ["./src/*"]
+      "~/*": ["./src/*"],
+      "@di/*": ["./di/*"]
     }
   },
   "include": [

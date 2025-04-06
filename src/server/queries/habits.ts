@@ -1,13 +1,31 @@
 import { db } from "~/server/db";
 import { habits, habitLogs } from "~/server/db/schema";
-import type { Habit } from "~/types";
-import type {
-  HabitLog,
-  CompletionSummary,
-  StreakSummary,
-} from "~/types/models/log";
+import { Habit } from "~/domain/entities/habit";
+import { HabitLog } from "~/domain/entities/habit-log";
+import type { CompletionSummary, StreakSummary } from "~/server/queries";
 import { eq, like, or, and, type SQL, between, desc } from "drizzle-orm";
-import { type HabitCategory, FrequencyType } from "~/types/common/enums";
+import {
+  type HabitCategory,
+  FrequencyType,
+  type HabitColor,
+} from "~/domain/enums";
+import type { FrequencyValue } from "~/domain/utils/frequency";
+import type { HabitDetails } from "~/types";
+import {
+  toDomainHabit,
+  toDbHabit,
+  toDomainHabitLog,
+  toDbHabitLog,
+} from "~/infrastructure/type-converters/habit-converter";
+import {
+  isWithinInterval,
+  startOfDay,
+  endOfDay,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+} from "date-fns";
 
 // Define types from the schema
 type HabitRow = typeof habits.$inferSelect;
@@ -33,9 +51,7 @@ export async function getHabits(userId: string): Promise<Habit[]> {
     .where(eq(habits.userId, userId))
     .orderBy(desc(habits.createdAt));
 
-  return results.map((habit) => ({
-    ...habit,
-  }));
+  return results.map(toDomainHabit);
 }
 
 /**
@@ -43,9 +59,13 @@ export async function getHabits(userId: string): Promise<Habit[]> {
  * @param filters - Filter criteria
  * @returns Array of filtered habits
  */
-export async function getFilteredHabits(
-  filters: HabitFilter
-): Promise<HabitRow[]> {
+export async function getFilteredHabits(filters: {
+  userId: string;
+  isActive?: boolean;
+  isArchived?: boolean;
+  category?: HabitCategory;
+  searchQuery?: string;
+}): Promise<Habit[]> {
   const { userId, isActive, isArchived, category, searchQuery } = filters;
 
   const conditions: SQL<unknown>[] = [];
@@ -67,32 +87,37 @@ export async function getFilteredHabits(
     conditions.push(like(habits.name, `%${searchQuery}%`));
   }
 
-  return db
+  const results = await db
     .select()
     .from(habits)
     .where(and(...conditions));
+
+  return results.map(toDomainHabit);
 }
 
 /**
  * Creates a new habit
- * @param habit - The habit data
+ * @param params - The habit creation parameters
  * @returns The created habit
  */
-export async function createHabit(
-  habit: Omit<
-    Habit,
-    "id" | "createdAt" | "updatedAt" | "streak" | "longestStreak"
-  >
-): Promise<Habit> {
-  const newHabit: Habit = {
-    ...habit,
-    id: crypto.randomUUID(),
-    streak: 0,
-    longestStreak: 0,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
-  await db.insert(habits).values(newHabit);
+export async function createHabit(params: {
+  userId: string;
+  name: string;
+  description?: string;
+  category: HabitCategory;
+  color: HabitColor;
+  frequencyType: FrequencyType;
+  frequencyValue: FrequencyValue;
+  subCategory?: string;
+  goal?: number;
+  metricType?: string;
+  units?: string;
+  notes?: string;
+  reminder?: Date;
+  reminderEnabled?: boolean;
+}): Promise<Habit> {
+  const newHabit = Habit.create(params);
+  await db.insert(habits).values(toDbHabit(newHabit));
   return newHabit;
 }
 
@@ -103,15 +128,31 @@ export async function createHabit(
  */
 export async function updateHabit(
   id: string,
-  updates: Partial<Omit<Habit, "id" | "createdAt">>
+  updates: {
+    name?: string;
+    description?: string;
+    category?: HabitCategory;
+    color?: HabitColor;
+    frequencyType?: FrequencyType;
+    frequencyValue?: FrequencyValue;
+    subCategory?: string;
+    goal?: number;
+    metricType?: string;
+    units?: string;
+    notes?: string;
+    reminder?: Date;
+    reminderEnabled?: boolean;
+    isActive?: boolean;
+    isArchived?: boolean;
+  }
 ): Promise<void> {
-  await db
-    .update(habits)
-    .set({
-      ...updates,
-      updatedAt: new Date(),
-    })
-    .where(eq(habits.id, id));
+  const habit = await getHabitById(id);
+  if (!habit) {
+    throw new Error(`Habit with id ${id} not found`);
+  }
+
+  const updatedHabit = habit.update(updates);
+  await db.update(habits).set(toDbHabit(updatedHabit)).where(eq(habits.id, id));
 }
 
 /**
@@ -135,9 +176,32 @@ export async function getHabitById(id: string): Promise<Habit | null> {
   const result = await db.select().from(habits).where(eq(habits.id, id));
   if (!result[0]) return null;
 
-  return {
-    ...result[0],
-  };
+  return toDomainHabit(result[0]);
+}
+
+/**
+ * Completes a habit
+ * @param habitId - The habit ID
+ * @param completedAt - The completion time
+ * @returns The updated habit
+ */
+export async function completeHabit(
+  habitId: string,
+  completedAt: Date = new Date()
+): Promise<Habit> {
+  const habit = await getHabitById(habitId);
+  if (!habit) {
+    throw new Error(`Habit with id ${habitId} not found`);
+  }
+
+  const wasOnTime = await wasHabitCompletedOnTime(habit, completedAt);
+  const updatedHabit = wasOnTime ? habit.complete(completedAt) : habit;
+
+  await db
+    .update(habits)
+    .set(toDbHabit(updatedHabit))
+    .where(eq(habits.id, habitId));
+  return updatedHabit;
 }
 
 /**
@@ -165,22 +229,25 @@ async function wasHabitCompletedOnTime(
   // If this is the first completion, it's always on time
   if (!lastLog) return true;
 
-  const daysBetween = Math.floor(
-    (completedAt.getTime() - lastCompletionDate.getTime()) /
-      (1000 * 60 * 60 * 24)
-  );
-
   switch (habit.frequencyType) {
-    case FrequencyType.Daily:
-      return daysBetween <= 1;
-    case FrequencyType.Weekly:
-      return daysBetween <= 7;
-    case FrequencyType.Monthly:
-      // Check if it's within the same month or the next month
-      const lastMonth = lastCompletionDate.getMonth();
-      const currentMonth = completedAt.getMonth();
-      const monthDiff = (currentMonth - lastMonth + 12) % 12;
-      return monthDiff <= 1;
+    case FrequencyType.DAILY:
+      return isWithinInterval(completedAt, {
+        start: startOfDay(lastCompletionDate),
+        end: endOfDay(lastCompletionDate),
+      });
+    case FrequencyType.WEEKLY:
+      return isWithinInterval(completedAt, {
+        start: startOfWeek(lastCompletionDate),
+        end: endOfWeek(lastCompletionDate),
+      });
+    case FrequencyType.MONTHLY:
+      return isWithinInterval(completedAt, {
+        start: startOfMonth(lastCompletionDate),
+        end: endOfMonth(lastCompletionDate),
+      });
+    case FrequencyType.CUSTOM:
+      // For custom frequency, we'll need to implement custom logic
+      return true;
     default:
       return false;
   }
@@ -191,20 +258,20 @@ async function wasHabitCompletedOnTime(
  * @param habit - The habit
  * @param completedAt - The completion time
  */
-async function updateHabitStreak(
+export async function updateHabitStreak(
   habit: Habit,
   completedAt: Date
 ): Promise<void> {
   const isOnTime = await wasHabitCompletedOnTime(habit, completedAt);
 
-  const newStreak = isOnTime ? habit.streak + 1 : 1;
-  const newLongestStreak = Math.max(habit.longestStreak, newStreak);
+  // Use the domain entity's complete method instead of trying to modify properties directly
+  const updatedHabit = habit.complete(completedAt);
 
-  await updateHabit(habit.id, {
-    streak: newStreak,
-    longestStreak: newLongestStreak,
-    lastCompleted: completedAt,
-  });
+  // Convert to database format and update
+  await db
+    .update(habits)
+    .set(toDbHabit(updatedHabit))
+    .where(eq(habits.id, habit.id));
 }
 
 /**
@@ -235,17 +302,13 @@ export async function logHabit(log: Omit<HabitLog, "id">): Promise<HabitLog> {
  * @returns Array of logs
  */
 export async function getHabitLogs(habitId: string): Promise<HabitLog[]> {
-  const logs = await db
+  const results = await db
     .select()
     .from(habitLogs)
     .where(eq(habitLogs.habitId, habitId))
     .orderBy(desc(habitLogs.completedAt));
 
-  return logs.map((log) => ({
-    ...log,
-    createdAt: log.completedAt,
-    updatedAt: log.completedAt,
-  }));
+  return results.map(toDomainHabitLog);
 }
 
 /**
@@ -271,11 +334,7 @@ export async function getHabitLogsByDateRange(
     )
     .orderBy(desc(habitLogs.completedAt));
 
-  return logs.map((log) => ({
-    ...log,
-    createdAt: log.completedAt,
-    updatedAt: log.completedAt,
-  }));
+  return logs.map(toDomainHabitLog);
 }
 
 function getGroupKey(date: Date, groupBy: "day" | "week" | "month"): string {
@@ -386,14 +445,10 @@ export async function getStreakHistory(
       continue;
     }
 
-    // Create a temporary habit state to check if this completion was on time
-    const tempHabit = {
-      ...habit,
-      lastCompleted: previousLog.completedAt,
-    };
-
+    // For subsequent logs, we don't need to modify the habit
+    // since wasHabitCompletedOnTime only checks the lastCompleted date
     const isOnTime = await wasHabitCompletedOnTime(
-      tempHabit,
+      habit,
       currentLog.completedAt
     );
     currentStreak = isOnTime ? currentStreak + 1 : 1;
@@ -406,4 +461,66 @@ export async function getStreakHistory(
   }
 
   return streakHistory;
+}
+
+/**
+ * Creates a new habit log
+ * @param params - The log creation parameters
+ * @returns The created log
+ */
+export async function createHabitLog(params: {
+  habitId: string;
+  userId: string;
+  value?: number;
+  notes?: string;
+  details?: Record<string, unknown>;
+  difficulty?: number;
+  feeling?: string;
+  hasPhoto?: boolean;
+  photoUrl?: string;
+}): Promise<HabitLog> {
+  const newLog = HabitLog.create(params);
+  await db.insert(habitLogs).values(toDbHabitLog(newLog));
+  return newLog;
+}
+
+/**
+ * Updates a habit log
+ * @param id - The log ID
+ * @param updates - The updates to apply
+ */
+export async function updateHabitLog(
+  id: string,
+  updates: {
+    value?: number;
+    notes?: string;
+    details?: Record<string, unknown>;
+    difficulty?: number;
+    feeling?: string;
+    hasPhoto?: boolean;
+    photoUrl?: string;
+  }
+): Promise<void> {
+  const log = await getHabitLogById(id);
+  if (!log) {
+    throw new Error(`Habit log with id ${id} not found`);
+  }
+
+  const updatedLog = log.update(updates);
+  await db
+    .update(habitLogs)
+    .set(toDbHabitLog(updatedLog))
+    .where(eq(habitLogs.id, id));
+}
+
+/**
+ * Gets a habit log by ID
+ * @param id - The log ID
+ * @returns The log if found, null otherwise
+ */
+export async function getHabitLogById(id: string): Promise<HabitLog | null> {
+  const result = await db.select().from(habitLogs).where(eq(habitLogs.id, id));
+  if (!result[0]) return null;
+
+  return toDomainHabitLog(result[0]);
 }

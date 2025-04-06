@@ -133,8 +133,10 @@ export function HabitDashboard({ userId }: HabitDashboardProps) {
       );
 
       toast.success(`${habit.name} completed!`);
-    } catch (err) {
-      console.error("Error completing habit:", err);
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to complete habit";
+      console.error("Error completing habit:", errorMessage);
       toast.error("Failed to complete habit. Please try again.");
     }
   };
@@ -231,7 +233,6 @@ export function HabitDashboard({ userId }: HabitDashboardProps) {
         onOpenChange={setIsAddModalOpen}
         userId={userId}
         onAddHabit={handleAddHabit}
-        isLoading={isLoading}
       />
     </div>
   );

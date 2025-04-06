@@ -20,21 +20,32 @@ import {
   CardTitle,
 } from "~/components/ui/card";
 import { mockHabits } from "~/lib/mock-data";
-import type { HabitLog } from "~/types";
+import type { HabitLog } from "~/types/models/log";
+import { useHabits } from "~/hooks/use-habits";
+import { useEffect, useState } from "react";
 
 export default function HabitPage({ params }: { params: { id: string } }) {
+  const [habitLogs, setHabitLogs] = useState<HabitLog[]>([]);
+  const { fetchHabitLogs } = useHabits(params.id);
+
+  useEffect(() => {
+    const loadHabitLogs = async () => {
+      const logs = await fetchHabitLogs(params.id);
+      setHabitLogs(logs);
+    };
+    void loadHabitLogs();
+  }, [params.id, fetchHabitLogs]);
+
   const habit = mockHabits.find((h) => h.id === params.id);
 
   if (!habit) {
     return <div>Habit not found</div>;
   }
 
-  // Assuming we'll get habitLogs from somewhere - for now using empty array
-  const habitLogs: HabitLog[] = [];
   const chartData = habitLogs
     .filter((log) => log.habitId === habit.id)
     .map((log) => ({
-      date: format(new Date(log.completedAt), "MMM d"),
+      date: format(log.completedAt as Date, "MMM d"),
       completed: 1,
     }));
 

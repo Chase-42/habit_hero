@@ -44,3 +44,15 @@ yarn-error.log*
 
 # idea files
 .idea
+
+# Cursor specific files
+.cursor/
+.cursor.json
+.cursorignore
+.cursorrc
+
+# Documentation
+*.md
+!README.md
+!CONTRIBUTING.md
+!LICENSE.md
