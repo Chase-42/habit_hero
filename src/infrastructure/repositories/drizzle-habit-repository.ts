@@ -15,7 +15,7 @@ import { logger } from "~/infrastructure/logger";
 import type { IStreakCalculationService } from "~/domain/services/interfaces/streak-calculation-service.interface";
 import type { IHabitCompletionService } from "~/domain/services/interfaces/habit-completion-service.interface";
 import type { IHabitArchiveService } from "~/domain/services/interfaces/habit-archive-service.interface";
-import { TYPES } from "~/di/tokens";
+import { TYPES } from "@di/tokens";
 
 @injectable()
 export class DrizzleHabitRepository implements IHabitRepository {
