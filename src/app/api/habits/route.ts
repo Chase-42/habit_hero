@@ -1,121 +1,16 @@
-import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
-import { createHabit, getHabits } from "~/server/queries/habits";
-import { newHabitSchema } from "~/schemas/habit";
-import { z } from "zod";
-import type { ApiResponse } from "~/types/api/validation";
+import "reflect-metadata";
+import "~/di/setup";
+import { container } from "tsyringe";
+import { HabitController } from "~/interface-adapters/controllers/habit-controller";
+import { TYPES } from "~/di/tokens";
 
-export async function GET() {
-  console.log("[API] GET /api/habits - Start");
-  try {
-    const { userId } = await auth();
-    console.log("[API] GET /api/habits - User ID:", userId);
-    if (!userId) {
-      console.log("[API] GET /api/habits - Unauthorized");
-      return NextResponse.json<ApiResponse<null>>(
-        {
-          data: null,
-          error: {
-            code: "UNAUTHORIZED",
-            message: "Unauthorized access",
-          },
-        },
-        { status: 401 }
-      );
-    }
-    const habits = await getHabits(userId);
-    console.log(
-      "[API] GET /api/habits - Success, found",
-      habits.length,
-      "habits"
-    );
-    return NextResponse.json<ApiResponse<typeof habits>>({ data: habits });
-  } catch (error) {
-    console.error("[API] GET /api/habits - Error:", error);
-    return NextResponse.json<ApiResponse<null>>(
-      {
-        data: null,
-        error: {
-          code: "FETCH_ERROR",
-          message: "Failed to fetch habits",
-          details:
-            error instanceof Error
-              ? [{ field: "general", message: error.message }]
-              : undefined,
-        },
-      },
-      { status: 500 }
-    );
-  }
+// Create a new instance of the controller with resolved dependencies
+const controller = new HabitController(container.resolve(TYPES.HabitUseCase));
+
+export async function GET(request: Request) {
+  return controller.getHabits(request);
 }
 
 export async function POST(request: Request) {
-  console.log("[API] POST /api/habits - Start");
-  try {
-    const { userId } = await auth();
-    console.log("[API] POST /api/habits - User ID:", userId);
-    if (!userId) {
-      console.log("[API] POST /api/habits - Unauthorized");
-      return NextResponse.json<ApiResponse<null>>(
-        {
-          data: null,
-          error: {
-            code: "UNAUTHORIZED",
-            message: "Unauthorized access",
-          },
-        },
-        { status: 401 }
-      );
-    }
-
-    const body = (await request.json()) as unknown as z.infer<
-      typeof newHabitSchema
-    >;
-    console.log("[API] POST /api/habits - Request body:", body);
-    const habit = newHabitSchema.parse(body);
-    const createdHabit = await createHabit({
-      ...habit,
-      userId,
-      lastCompleted: null,
-    });
-    console.log(
-      "[API] POST /api/habits - Success, created habit:",
-      createdHabit.id
-    );
-    return NextResponse.json<ApiResponse<typeof createdHabit>>({
-      data: createdHabit,
-    });
-  } catch (error) {
-    console.error("[API] POST /api/habits - Error:", error);
-    if (error instanceof z.ZodError) {
-      return NextResponse.json<ApiResponse<null>>(
-        {
-          data: null,
-          error: {
-            code: "VALIDATION_ERROR",
-            message: "Invalid habit data",
-            details: error.errors.map((err) => ({
-              field: err.path.join("."),
-              message: err.message,
-            })),
-          },
-        },
-        { status: 400 }
-      );
-    }
-    return NextResponse.json<ApiResponse<null>>(
-      {
-        data: null,
-        error: {
-          code: "CREATE_ERROR",
-          message: "Failed to create habit",
-          details:
-            error instanceof Error
-              ? [{ field: "general", message: error.message }]
-              : undefined,
-        },
-      },
-      { status: 500 }
-    );
-  }
+  return controller.createHabit(request);
 }
