@@ -5,8 +5,7 @@ import { useUser } from "@clerk/nextjs";
 import { useMemo, useState, useEffect } from "react";
 import { FrequencyType } from "~/types/common/enums";
 import { toggleHabit } from "~/lib/api-client";
-import type { Habit, HabitLog } from "~/types";
-import { isSameDay, startOfDay } from "date-fns";
+import type { Habit } from "~/types";
 
 import { Card, CardContent, CardHeader } from "~/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
@@ -14,6 +13,7 @@ import { HabitCalendar } from "~/components/habit-calendar";
 import { HabitList } from "~/components/habit-list";
 import { StreakHeatmap } from "~/components/streak-heatmap";
 import { StatsCards } from "~/components/stats-cards";
+import { useAddHabit, useDeleteHabit } from "~/hooks/use-habit-operations";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { Skeleton } from "~/components/ui/skeleton";
 import { fetchHabits, fetchHabitLogs } from "~/lib/api-client";
@@ -32,13 +32,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "~/components/ui/alert-dialog";
-import { useHabitOperations } from "~/hooks/use-habit-operations";
 
 export function DashboardContent() {
   const { user } = useUser();
   const [habitToDelete, setHabitToDelete] = useState<Habit | null>(null);
+  const [completingHabits, setCompletingHabits] = useState<Set<string>>(
+    new Set()
+  );
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const queryClient = useQueryClient();
+
+  const addHabitMutation = useAddHabit();
+  const deleteHabitMutation = useDeleteHabit();
 
   const { data: habits = [], isLoading } = useQuery({
     queryKey: ["habits"],
@@ -48,7 +53,7 @@ export function DashboardContent() {
     },
   });
 
-  const { data: logs = [] } = useQuery({
+  const { data: fetchedHabitLogs = [] } = useQuery({
     queryKey: ["habitLogs"],
     queryFn: async () => {
       const today = new Date();
@@ -61,82 +66,6 @@ export function DashboardContent() {
     },
     enabled: habits.length > 0,
   });
-
-  const { completingHabits, completeHabit, getTodayHabits } =
-    useHabitOperations({
-      userId: user?.id ?? "",
-      habits,
-      habitLogs: logs,
-      onHabitsChange: (updatedHabits) => {
-        queryClient.setQueryData(["habits"], updatedHabits);
-      },
-      onLogsChange: (updatedLogs) => {
-        queryClient.setQueryData(["habitLogs"], updatedLogs);
-      },
-    });
-
-  const handleAddHabit = async (
-    habit: Omit<
-      Habit,
-      "id" | "createdAt" | "updatedAt" | "streak" | "longestStreak"
-    >
-  ) => {
-    try {
-      const response = await fetch("/api/habits", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(habit),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to create habit");
-      }
-
-      const result = (await response.json()) as Habit;
-      queryClient.setQueryData<Habit[]>(["habits"], (old = []) => [
-        ...old,
-        result,
-      ]);
-      toast.success("Habit created successfully!");
-    } catch (err: unknown) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Failed to create habit";
-      console.error("Error creating habit:", errorMessage);
-      toast.error("Failed to create habit. Please try again.");
-      throw err;
-    }
-  };
-
-  const handleDelete = async (): Promise<void> => {
-    if (!habitToDelete) return;
-
-    try {
-      const response = await fetch(`/api/habits/${habitToDelete.id}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to delete habit");
-      }
-
-      queryClient.setQueryData<Habit[]>(["habits"], (old = []) =>
-        old.filter((h) => h.id !== habitToDelete.id)
-      );
-      queryClient.setQueryData<HabitLog[]>(["habitLogs"], (old = []) =>
-        old.filter((log) => log.habitId !== habitToDelete.id)
-      );
-
-      toast.success(`${habitToDelete.name} deleted successfully`);
-      setHabitToDelete(null);
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to delete habit";
-      console.error("Error deleting habit:", errorMessage);
-      toast.error("Failed to delete habit. Please try again.");
-    }
-  };
-
-  const todayHabits = useMemo(() => getTodayHabits(), [getTodayHabits, habits]);
 
   const completeHabitMutation = useMutation({
     mutationFn: async ({ habit }: { habit: Habit }) => {
@@ -155,15 +84,14 @@ export function DashboardContent() {
     },
     onMutate: async ({ habit }) => {
       await queryClient.cancelQueries({ queryKey: ["habits"] });
-      const previousHabits =
-        queryClient.getQueryData<Habit[]>(["habits"]) ?? [];
+      const previousHabits = queryClient.getQueryData<Habit[]>(["habits"]);
 
       queryClient.setQueryData<Habit[]>(["habits"], (old = []) =>
         old.map((h) => {
           if (h.id === habit.id) {
             const updatedHabit = {
               ...h,
-              lastCompleted: h.lastCompleted ? null : startOfDay(new Date()),
+              lastCompleted: h.lastCompleted ? null : new Date(),
             };
             console.log("[OPTIMISTIC] Updating habit:", {
               id: h.id,
@@ -177,25 +105,61 @@ export function DashboardContent() {
         })
       );
 
-      completingHabits.add(habit.id);
+      setCompletingHabits((prev) => new Set([...prev, habit.id]));
       return { previousHabits };
     },
-    onError: (err: unknown, variables, context) => {
+    onError: (_, { habit }, context) => {
       if (context?.previousHabits) {
-        queryClient.setQueryData<Habit[]>(["habits"], context.previousHabits);
+        queryClient.setQueryData(["habits"], context.previousHabits);
       }
-      completingHabits.delete(variables.habit.id);
+      setCompletingHabits((prev) => {
+        const next = new Set(prev);
+        next.delete(habit.id);
+        return next;
+      });
     },
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: ["habits"] });
+    onSettled: async (_, __, { habit }) => {
+      setCompletingHabits((prev) => {
+        const next = new Set(prev);
+        next.delete(habit.id);
+        return next;
+      });
+      // Invalidate both habits and logs queries
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["habits"] }),
+        queryClient.invalidateQueries({ queryKey: ["habitLogs"] }),
+      ]);
     },
   });
+
+  const completeHabit = async (habit: Habit) => {
+    await completeHabitMutation.mutateAsync({ habit });
+  };
+
+  const todayHabits = useMemo(() => {
+    const today = new Date().getDay();
+    return habits.filter((habit) => {
+      if (!habit.isActive || habit.isArchived) return false;
+
+      if (habit.frequencyType === FrequencyType.Daily) return true;
+
+      if (habit.frequencyType === FrequencyType.Weekly) {
+        return habit.frequencyValue.days?.includes(today) ?? false;
+      }
+
+      if (habit.frequencyType === FrequencyType.Monthly) {
+        return new Date().getDate() === 1;
+      }
+
+      return false;
+    });
+  }, [habits]);
 
   const { data: habitLogs = [], isLoading: isLoadingLogs } = useQuery({
     queryKey: ["habitLogs"],
     queryFn: async () => {
       console.log("[HABIT_LOGS] Starting fetch for all habits");
-      const today = startOfDay(new Date());
+      const today = new Date();
       const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
       const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
 
@@ -242,6 +206,40 @@ export function DashboardContent() {
   useEffect(() => {
     console.log("[LOGS] Logs updated:", habitLogs.length);
   }, [habitLogs]);
+
+  const handleAddHabit = async (
+    habit: Omit<
+      Habit,
+      "id" | "createdAt" | "updatedAt" | "streak" | "longestStreak"
+    >
+  ) => {
+    try {
+      await addHabitMutation.mutateAsync(habit);
+      toast.success("Habit created successfully!");
+    } catch (err) {
+      console.error("Error creating habit:", err);
+      toast.error("Failed to create habit. Please try again.");
+      throw err;
+    }
+  };
+
+  const handleDelete = async (): Promise<void> => {
+    if (!habitToDelete) return;
+
+    try {
+      queryClient.setQueryData<Habit[]>(["habits"], (old = []) =>
+        old.filter((h) => h.id !== habitToDelete.id)
+      );
+
+      await deleteHabitMutation.mutateAsync(habitToDelete.id);
+      toast.success(`${habitToDelete.name} deleted successfully`);
+      setHabitToDelete(null);
+    } catch (error) {
+      await queryClient.invalidateQueries({ queryKey: ["habits"] });
+      console.error("Error deleting habit:", error);
+      toast.error("Failed to delete habit. Please try again.");
+    }
+  };
 
   const stats = useMemo(() => {
     console.log(
@@ -490,6 +488,14 @@ export function DashboardContent() {
             </p>
           </div>
           <div className="flex items-center gap-4">
+            <Button
+              onClick={() => setIsAddModalOpen(true)}
+              variant="default"
+              className="flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Add Habit
+            </Button>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Calendar className="h-4 w-4" />
               <span>
@@ -523,7 +529,7 @@ export function DashboardContent() {
             className="flex min-h-0 flex-1 flex-col space-y-4 p-4"
           >
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <StatsCards habits={habits} habitLogs={habitLogs} />
+              <StatsCards habits={habits} habitLogs={fetchedHabitLogs} />
             </div>
 
             <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-2">
@@ -535,7 +541,7 @@ export function DashboardContent() {
                   </p>
                 </CardHeader>
                 <CardContent className="min-h-0 flex-1">
-                  <StreakHeatmap habits={habits} habitLogs={habitLogs} />
+                  <StreakHeatmap habits={habits} habitLogs={fetchedHabitLogs} />
                 </CardContent>
               </Card>
 
@@ -551,7 +557,7 @@ export function DashboardContent() {
                     <div className="space-y-3 p-4">
                       <HabitList
                         habits={todayHabits}
-                        habitLogs={habitLogs}
+                        habitLogs={fetchedHabitLogs}
                         onComplete={completeHabit}
                         onDelete={async (habit) => {
                           setHabitToDelete(habit);
@@ -581,7 +587,7 @@ export function DashboardContent() {
                   <div className="space-y-3">
                     <HabitList
                       habits={habits}
-                      habitLogs={habitLogs}
+                      habitLogs={fetchedHabitLogs}
                       onComplete={completeHabit}
                       onDelete={async (habit) => {
                         setHabitToDelete(habit);
@@ -606,7 +612,7 @@ export function DashboardContent() {
               </CardHeader>
               <CardContent className="min-h-0 flex-1">
                 <ScrollArea className="h-full">
-                  <HabitCalendar habits={habits} habitLogs={habitLogs} />
+                  <HabitCalendar habits={habits} habitLogs={fetchedHabitLogs} />
                 </ScrollArea>
               </CardContent>
             </Card>

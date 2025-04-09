@@ -3,13 +3,6 @@ import { habits, habitLogs } from "~/server/db/schema";
 import type { Habit, HabitLog, HabitCategory } from "~/types";
 import { eq, like, and, type SQL, between, desc } from "drizzle-orm";
 import { FrequencyType } from "~/types/common/enums";
-import {
-  isWithinInterval,
-  startOfWeek,
-  endOfWeek,
-  startOfMonth,
-  endOfMonth,
-} from "date-fns";
 
 // Define types from the schema
 type HabitRow = typeof habits.$inferSelect;
@@ -132,11 +125,11 @@ async function wasHabitCompletedOnTime(
   );
 
   switch (habit.frequencyType) {
-    case FrequencyType.DAILY:
+    case FrequencyType.Daily:
       return daysBetween <= 1;
-    case FrequencyType.WEEKLY:
+    case FrequencyType.Weekly:
       return daysBetween <= 7;
-    case FrequencyType.MONTHLY:
+    case FrequencyType.Monthly:
       // Check if it's within the same month or the next month
       const lastMonth = lastCompletionDate.getMonth();
       const currentMonth = completedAt.getMonth();

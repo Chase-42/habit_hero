@@ -28,7 +28,7 @@ import {
 } from "~/components/ui/dropdown-menu";
 import type { Habit } from "~/types";
 import { cn } from "~/lib/utils";
-import { FrequencyType, HabitCategory } from "~/types/common/enums";
+import { FrequencyType } from "~/types/common/enums";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -43,10 +43,12 @@ import {
 } from "~/components/ui/alert-dialog";
 
 // Types
-type HabitCategoryStyle = {
-  text: string;
-  bg: string;
-};
+type HabitCategory =
+  | "mindfulness"
+  | "nutrition"
+  | "fitness"
+  | "productivity"
+  | "other";
 
 interface HabitCardProps {
   habit: Habit;
@@ -66,49 +68,15 @@ const ICON_BUTTON_STYLES = "h-8 w-8 hover:bg-zinc-100 dark:hover:bg-zinc-800";
 const DROPDOWN_ITEM_STYLES =
   "flex cursor-pointer items-center gap-2 rounded-sm px-3 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800";
 
-const DEFAULT_CATEGORY_STYLE = {
-  text: "text-gray-500",
-  bg: "bg-gray-50 dark:bg-gray-950/30",
-};
-
-const CATEGORY_STYLES: Record<HabitCategory, HabitCategoryStyle> = {
-  [HabitCategory.HEALTH]: {
-    text: "text-blue-500",
-    bg: "bg-blue-50 dark:bg-blue-950/30",
-  },
-  [HabitCategory.FITNESS]: {
-    text: "text-red-500",
-    bg: "bg-red-50 dark:bg-red-950/30",
-  },
-  [HabitCategory.MENTAL]: {
+const CATEGORY_STYLES: Record<HabitCategory, { text: string; bg: string }> = {
+  mindfulness: { text: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-950/30" },
+  nutrition: { text: "text-green-500", bg: "bg-green-50 dark:bg-green-950/30" },
+  fitness: { text: "text-red-500", bg: "bg-red-50 dark:bg-red-950/30" },
+  productivity: {
     text: "text-purple-500",
     bg: "bg-purple-50 dark:bg-purple-950/30",
   },
-  [HabitCategory.PRODUCTIVITY]: {
-    text: "text-green-500",
-    bg: "bg-green-50 dark:bg-green-950/30",
-  },
-  [HabitCategory.RELATIONSHIPS]: {
-    text: "text-pink-500",
-    bg: "bg-pink-50 dark:bg-pink-950/30",
-  },
-  [HabitCategory.FINANCE]: {
-    text: "text-yellow-500",
-    bg: "bg-yellow-50 dark:bg-yellow-950/30",
-  },
-  [HabitCategory.EDUCATION]: {
-    text: "text-indigo-500",
-    bg: "bg-indigo-50 dark:bg-indigo-950/30",
-  },
-  [HabitCategory.CREATIVITY]: {
-    text: "text-orange-500",
-    bg: "bg-orange-50 dark:bg-orange-950/30",
-  },
-  [HabitCategory.SPIRITUAL]: {
-    text: "text-teal-500",
-    bg: "bg-teal-50 dark:bg-teal-950/30",
-  },
-  [HabitCategory.OTHER]: DEFAULT_CATEGORY_STYLE,
+  other: { text: "text-gray-500", bg: "bg-gray-50 dark:bg-gray-950/30" },
 };
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
@@ -245,14 +213,14 @@ const ExpandedContent = ({ habit }: { habit: Habit }) => (
 // Utility functions
 const getFrequencyText = (habit: Habit): string => {
   switch (habit.frequencyType) {
-    case FrequencyType.DAILY:
+    case FrequencyType.Daily:
       return "Daily";
-    case FrequencyType.WEEKLY:
+    case FrequencyType.Weekly:
       if (habit.frequencyValue.days?.length) {
         return `Weekly: ${habit.frequencyValue.days.map((day) => DAY_NAMES[day]).join(", ")}`;
       }
       return "Weekly";
-    case FrequencyType.MONTHLY:
+    case FrequencyType.Monthly:
       return "Monthly";
     default:
       return "";
@@ -284,7 +252,7 @@ export function HabitCard({
       JSON.stringify(
         {
           habitId: habit.id,
-          habitTitle: habit.name,
+          habitName: habit.name,
           lastCompleted,
           today,
           isCompleted,
@@ -295,136 +263,162 @@ export function HabitCard({
       )
   );
 
-  const handleDelete = () => {
-    try {
-      onDelete();
-      toast.success("Habit deleted successfully");
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : `Failed to delete ${habit.name}`
-      );
-    }
-  };
-
   return (
-    <Card className="overflow-hidden">
+    <Card
+      className={cn(
+        "group relative overflow-visible transition-all duration-300",
+        CATEGORY_STYLES[habit.category as HabitCategory].bg
+      )}
+    >
       <CardContent className="p-4">
-        <div className="flex items-start justify-between">
-          <div className="flex items-start gap-3">
+        <div className="flex items-center justify-between">
+          <div className="flex-1 space-y-1">
+            <div className="flex items-center gap-2">
+              <h3
+                className={cn(
+                  "text-lg font-medium",
+                  isCompleted && "text-muted-foreground line-through"
+                )}
+              >
+                {habit.name}
+              </h3>
+              <span
+                className={cn(
+                  "text-sm font-medium",
+                  CATEGORY_STYLES[habit.category as HabitCategory].text
+                )}
+              >
+                {habit.category}
+              </span>
+            </div>
+
+            <p className="text-sm text-muted-foreground">{habit.description}</p>
+
+            <div className="flex items-center gap-3 text-sm text-muted-foreground">
+              <span>{getFrequencyText(habit)}</span>
+              {habit.streak > 0 && (
+                <span className="font-medium text-amber-500">
+                  {habit.streak} day streak 🔥
+                </span>
+              )}
+              {isCompleted && habit.lastCompleted && (
+                <span>
+                  Completed{" "}
+                  {formatDistanceToNow(new Date(habit.lastCompleted), {
+                    addSuffix: true,
+                  })}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
             <CompletionButton
               isCompleted={isCompleted}
               onClick={onToggleComplete}
               isLoading={isLoading}
             />
-            <div className="space-y-1">
-              <h3 className="font-medium">{habit.name}</h3>
-              <p className="text-sm text-muted-foreground">
-                {getFrequencyText(habit)}
-              </p>
-            </div>
-          </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+
+            <div className="flex">
               <Button
                 variant="ghost"
                 size="icon"
                 className={ICON_BUTTON_STYLES}
+                onClick={onExpand}
               >
-                <MoreHorizontal className="h-4 w-4" />
+                {isExpanded ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              {onEdit && (
-                <DropdownMenuItem
-                  className={DROPDOWN_ITEM_STYLES}
-                  onClick={onEdit}
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={ICON_BUTTON_STYLES}
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className="min-w-[180px] rounded-md bg-white p-2 shadow-md dark:bg-zinc-900"
                 >
-                  <Edit className="h-4 w-4" />
-                  <span>Edit</span>
-                </DropdownMenuItem>
-              )}
-              {onViewStats && (
-                <DropdownMenuItem
-                  className={DROPDOWN_ITEM_STYLES}
-                  onClick={onViewStats}
-                >
-                  <BarChart2 className="h-4 w-4" />
-                  <span>View Stats</span>
-                </DropdownMenuItem>
-              )}
-              {onToggleReminder && (
-                <DropdownMenuItem
-                  className={DROPDOWN_ITEM_STYLES}
-                  onClick={onToggleReminder}
-                >
-                  {habit.reminderEnabled ? (
-                    <>
-                      <BellOff className="h-4 w-4" />
-                      <span>Disable Reminder</span>
-                    </>
-                  ) : (
-                    <>
-                      <Bell className="h-4 w-4" />
-                      <span>Enable Reminder</span>
-                    </>
+                  {onEdit && (
+                    <DropdownMenuItem
+                      onClick={onEdit}
+                      className={DROPDOWN_ITEM_STYLES}
+                    >
+                      <Edit className="h-4 w-4" />
+                      Edit
+                    </DropdownMenuItem>
                   )}
-                </DropdownMenuItem>
-              )}
-              {onArchive && (
-                <DropdownMenuItem
-                  className={DROPDOWN_ITEM_STYLES}
-                  onClick={onArchive}
-                >
-                  <Archive className="h-4 w-4" />
-                  <span>Archive</span>
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className={cn(DROPDOWN_ITEM_STYLES, "text-red-500")}
-                onClick={handleDelete}
-              >
-                <Trash2 className="h-4 w-4" />
-                <span>Delete</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-
-        <div className="mt-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span
-              className={cn(
-                "rounded-full px-2 py-0.5 text-xs font-medium",
-                (habit.category && CATEGORY_STYLES[habit.category]?.text) ||
-                  DEFAULT_CATEGORY_STYLE.text,
-                (habit.category && CATEGORY_STYLES[habit.category]?.bg) ||
-                  DEFAULT_CATEGORY_STYLE.bg
-              )}
-            >
-              {habit.category || HabitCategory.OTHER}
-            </span>
-            <span className="text-sm text-muted-foreground">
-              {habit.streak} day{habit.streak !== 1 ? "s" : ""} streak
-            </span>
+                  {onArchive && (
+                    <DropdownMenuItem
+                      onClick={onArchive}
+                      className={DROPDOWN_ITEM_STYLES}
+                    >
+                      <Archive className="h-4 w-4" />
+                      Archive
+                    </DropdownMenuItem>
+                  )}
+                  {onToggleReminder && (
+                    <DropdownMenuItem
+                      onClick={onToggleReminder}
+                      className={DROPDOWN_ITEM_STYLES}
+                    >
+                      {habit.reminder ? (
+                        <>
+                          <BellOff className="h-4 w-4" />
+                          Disable Reminder
+                        </>
+                      ) : (
+                        <>
+                          <Bell className="h-4 w-4" />
+                          Enable Reminder
+                        </>
+                      )}
+                    </DropdownMenuItem>
+                  )}
+                  {onViewStats && (
+                    <DropdownMenuItem
+                      onClick={onViewStats}
+                      className={DROPDOWN_ITEM_STYLES}
+                    >
+                      <BarChart2 className="h-4 w-4" />
+                      View Stats
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={onDelete}
+                    className={cn(DROPDOWN_ITEM_STYLES, "text-red-500")}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className={ICON_BUTTON_STYLES}
-            onClick={onExpand}
-          >
-            {isExpanded ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : (
-              <ChevronDown className="h-4 w-4" />
-            )}
-          </Button>
         </div>
 
-        {isExpanded && <ExpandedContent habit={habit} />}
+        <AnimatePresence>
+          {isExpanded && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              <ExpandedContent habit={habit} />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </CardContent>
     </Card>
   );

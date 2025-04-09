@@ -1,50 +1,34 @@
 export enum HabitColor {
-  RED = "RED",
-  ORANGE = "ORANGE",
-  YELLOW = "YELLOW",
-  GREEN = "GREEN",
-  BLUE = "BLUE",
-  INDIGO = "INDIGO",
-  VIOLET = "VIOLET",
-  PINK = "PINK",
-  ROSE = "ROSE",
-  CYAN = "CYAN",
-  SKY = "SKY",
-  AMBER = "AMBER",
-  EMERALD = "EMERALD",
-  TEAL = "TEAL",
-  LIME = "LIME",
-  FUCHSIA = "FUCHSIA",
-  PURPLE = "PURPLE",
+  Red = "red",
+  Green = "green",
+  Blue = "blue",
+  Yellow = "yellow",
+  Purple = "purple",
+  Pink = "pink",
+  Orange = "orange",
 }
 
 export enum FrequencyType {
-  DAILY = "DAILY",
-  WEEKLY = "WEEKLY",
-  MONTHLY = "MONTHLY",
-  CUSTOM = "CUSTOM",
+  Daily = "daily",
+  Weekly = "weekly",
+  Monthly = "monthly",
 }
 
 export enum HabitCategory {
-  HEALTH = "HEALTH",
-  FITNESS = "FITNESS",
-  MENTAL = "MENTAL",
-  PRODUCTIVITY = "PRODUCTIVITY",
-  RELATIONSHIPS = "RELATIONSHIPS",
-  FINANCE = "FINANCE",
-  EDUCATION = "EDUCATION",
-  CREATIVITY = "CREATIVITY",
-  SPIRITUAL = "SPIRITUAL",
-  OTHER = "OTHER",
+  Fitness = "fitness",
+  Nutrition = "nutrition",
+  Mindfulness = "mindfulness",
+  Productivity = "productivity",
+  Other = "other",
 }
 
 export enum SortOrder {
-  ASC = "ASC",
-  DESC = "DESC",
+  Asc = "asc",
+  Desc = "desc",
 }
 
 export enum SortField {
-  NAME = "NAME",
-  CREATED_AT = "CREATED_AT",
-  CATEGORY = "CATEGORY",
+  Name = "name",
+  CreatedAt = "createdAt",
+  Category = "category",
 }

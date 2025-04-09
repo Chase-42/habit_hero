@@ -41,15 +41,15 @@ export function WeeklyProgress({ habits, habitLogs }: WeeklyProgressProps) {
       const habitLogsForWeek = habitLogs.filter(
         (log) =>
           log.habitId === habit.id &&
-          log.completedAt >= weekAgo &&
-          log.completedAt <= today
+          new Date(log.completedAt) >= weekAgo &&
+          new Date(log.completedAt) <= today
       );
 
       // Calculate expected completions based on frequency
       let expectedCompletions = 0;
-      if (habit.frequencyType === FrequencyType.DAILY) {
+      if (habit.frequencyType === FrequencyType.Daily) {
         expectedCompletions = 7;
-      } else if (habit.frequencyType === FrequencyType.WEEKLY) {
+      } else if (habit.frequencyType === FrequencyType.Weekly) {
         expectedCompletions = habit.frequencyValue.days?.length ?? 0;
       }
 

@@ -9,17 +9,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import {
-  format,
-  subDays,
-  startOfDay,
-  endOfDay,
-  startOfWeek,
-  endOfWeek,
-  startOfMonth,
-  endOfMonth,
-  isWithinInterval,
-} from "date-fns";
+import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import type { StreakHeatmapProps } from "~/types/chart";
 import { FrequencyType } from "~/types/common/enums";
 import {
@@ -288,18 +278,12 @@ function isHabitActiveForDate(
   date: Date
 ): boolean {
   switch (habit.frequencyType) {
-    case FrequencyType.DAILY:
+    case FrequencyType.Daily:
       return true;
-    case FrequencyType.WEEKLY:
-      return isWithinInterval(date, {
-        start: startOfWeek(new Date()),
-        end: endOfWeek(new Date()),
-      });
-    case FrequencyType.MONTHLY:
-      return isWithinInterval(date, {
-        start: startOfMonth(new Date()),
-        end: endOfMonth(new Date()),
-      });
+    case FrequencyType.Weekly:
+      return habit.frequencyValue.days?.includes(date.getDay()) ?? false;
+    case FrequencyType.Monthly:
+      return date.getDate() === 1;
     default:
       return false;
   }
