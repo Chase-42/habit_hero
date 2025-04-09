@@ -2,12 +2,11 @@ import { useState } from "react";
 import type {
   Habit,
   HabitFilters,
+  HabitLog,
   CompletionSummary,
   StreakSummary,
 } from "~/types";
-import type { HabitLog } from "~/types/models/log";
 import type { ApiResponse } from "~/types/api/validation";
-import type { ApiHabitLog } from "~/interface-adapters/types/api";
 
 export function useHabits(userId: string) {
   const [isLoading, setIsLoading] = useState(false);
@@ -77,10 +76,8 @@ export function useHabits(userId: string) {
 
       return result.data;
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Failed to log habit";
-      setError(errorMessage);
-      throw new Error(errorMessage);
+      setError(err instanceof Error ? err.message : "Failed to log habit");
+      throw err;
     } finally {
       setIsLoading(false);
     }
@@ -99,19 +96,13 @@ export function useHabits(userId: string) {
       if (endDate) url += `&endDate=${endDate.toISOString()}`;
 
       const response = await fetch(url);
-      const result = (await response.json()) as ApiResponse<ApiHabitLog[]>;
+      const result = (await response.json()) as ApiResponse<HabitLog[]>;
 
       if (result.error) {
         throw new Error(result.error.message);
       }
 
-      // Convert dates from strings to Date objects
-      return result.data.map((log) => ({
-        ...log,
-        completedAt: new Date(log.completedAt),
-        createdAt: new Date(log.createdAt),
-        updatedAt: new Date(log.updatedAt),
-      })) as HabitLog[];
+      return result.data;
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to fetch habit logs"

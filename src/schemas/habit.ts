@@ -3,43 +3,27 @@ import type { Habit } from "~/types/models";
 import { HabitColor, FrequencyType, HabitCategory } from "~/types/common/enums";
 
 export const habitColorSchema = z.enum([
-  HabitColor.RED,
-  HabitColor.ORANGE,
-  HabitColor.YELLOW,
-  HabitColor.GREEN,
-  HabitColor.BLUE,
-  HabitColor.INDIGO,
-  HabitColor.VIOLET,
-  HabitColor.PINK,
-  HabitColor.ROSE,
-  HabitColor.CYAN,
-  HabitColor.SKY,
-  HabitColor.AMBER,
-  HabitColor.EMERALD,
-  HabitColor.TEAL,
-  HabitColor.LIME,
-  HabitColor.FUCHSIA,
-  HabitColor.PURPLE,
+  HabitColor.Red,
+  HabitColor.Green,
+  HabitColor.Blue,
+  HabitColor.Yellow,
+  HabitColor.Purple,
+  HabitColor.Pink,
+  HabitColor.Orange,
 ]) as z.ZodType<HabitColor>;
 
 export const frequencyTypeSchema = z.enum([
-  FrequencyType.DAILY,
-  FrequencyType.WEEKLY,
-  FrequencyType.MONTHLY,
-  FrequencyType.CUSTOM,
+  FrequencyType.Daily,
+  FrequencyType.Weekly,
+  FrequencyType.Monthly,
 ]) as z.ZodType<FrequencyType>;
 
 export const habitCategorySchema = z.enum([
-  HabitCategory.HEALTH,
-  HabitCategory.FITNESS,
-  HabitCategory.MENTAL,
-  HabitCategory.PRODUCTIVITY,
-  HabitCategory.RELATIONSHIPS,
-  HabitCategory.FINANCE,
-  HabitCategory.EDUCATION,
-  HabitCategory.CREATIVITY,
-  HabitCategory.SPIRITUAL,
-  HabitCategory.OTHER,
+  HabitCategory.Fitness,
+  HabitCategory.Nutrition,
+  HabitCategory.Mindfulness,
+  HabitCategory.Productivity,
+  HabitCategory.Other,
 ]) as z.ZodType<HabitCategory>;
 
 export const frequencyValueSchema = z.object({
@@ -118,23 +102,3 @@ export const updateHabitSchema = z.object({
     >
   >
 >;
-
-export const completeHabitSchema = z.object({
-  value: z.number().optional(),
-  notes: z.string().optional(),
-  details: z.record(z.unknown()).optional(),
-  difficulty: z.number().min(1).max(5).optional(),
-  feeling: z.string().optional(),
-  hasPhoto: z.boolean().optional(),
-  photoUrl: z.string().optional(),
-});
-
-export const habitIdSchema = z.string().uuid();
-
-export const habitListQuerySchema = z.object({
-  category: habitCategorySchema.optional(),
-  isActive: z.boolean().optional(),
-  isArchived: z.boolean().optional(),
-  sortBy: z.enum(["name", "createdAt", "category"]).optional(),
-  sortOrder: z.enum(["asc", "desc"]).optional(),
-});

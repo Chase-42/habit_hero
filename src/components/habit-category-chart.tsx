@@ -15,29 +15,19 @@ import type { CategoryData, HabitCategoryChartProps } from "~/types/chart";
 import { Card } from "~/components/ui/card";
 
 const categoryColors: Record<HabitCategory, string> = {
-  HEALTH: "#ef4444",
-  FITNESS: "#22c55e",
-  MENTAL: "#3b82f6",
-  PRODUCTIVITY: "#a855f7",
-  RELATIONSHIPS: "#f97316",
-  FINANCE: "#8b5cf6",
-  EDUCATION: "#ec4899",
-  CREATIVITY: "#14b8a6",
-  SPIRITUAL: "#f59e0b",
-  OTHER: "#6b7280",
+  fitness: "#ef4444",
+  nutrition: "#22c55e",
+  mindfulness: "#3b82f6",
+  productivity: "#a855f7",
+  other: "#6b7280",
 };
 
 const categoryLabels: Record<HabitCategory, string> = {
-  HEALTH: "Health",
-  FITNESS: "Fitness",
-  MENTAL: "Mental",
-  PRODUCTIVITY: "Productivity",
-  RELATIONSHIPS: "Relationships",
-  FINANCE: "Finance",
-  EDUCATION: "Education",
-  CREATIVITY: "Creativity",
-  SPIRITUAL: "Spiritual",
-  OTHER: "Other",
+  fitness: "Fitness",
+  nutrition: "Nutrition",
+  mindfulness: "Mindfulness",
+  productivity: "Productivity",
+  other: "Other",
 };
 
 export function HabitCategoryChart({ habits }: HabitCategoryChartProps) {

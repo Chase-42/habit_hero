@@ -14,11 +14,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
             refetchOnWindowFocus: false,
             refetchOnMount: false,
             refetchOnReconnect: false,
-            staleTime: Infinity,
-            gcTime: Infinity,
-          },
-          mutations: {
-            retry: false,
           },
         },
       })
