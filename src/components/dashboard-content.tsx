@@ -6,6 +6,7 @@ import { useMemo, useState, useEffect } from "react";
 import { FrequencyType } from "~/types/common/enums";
 import { toggleHabit } from "~/lib/api";
 import type { Habit } from "~/types";
+import { logger } from "~/lib/utils/logger";
 
 import { Card, CardContent, CardHeader } from "~/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
@@ -53,7 +54,7 @@ export function DashboardContent() {
     queryKey: ["habits"],
     queryFn: async () => {
       if (!user?.id) throw new Error("User not authenticated");
-      const response = await fetchHabits(user.id);
+      const response = await fetchHabits();
       return response;
     },
   });
@@ -66,7 +67,7 @@ export function DashboardContent() {
     queryKey: ["habitLogs"],
     queryFn: async () => {
       if (!user?.id) throw new Error("User not authenticated");
-      console.log("[HABIT_LOGS] Starting fetch for all habits");
+      logger.debug("[HABIT_LOGS] Starting fetch for all habits");
       const today = new Date();
       const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
       const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
@@ -75,14 +76,14 @@ export function DashboardContent() {
       startOfMonth.setHours(0, 0, 0, 0);
       endOfMonth.setHours(23, 59, 59, 999);
 
-      console.log("[HABIT_LOGS] Date range:", {
+      logger.debug("[HABIT_LOGS] Date range:", {
         start: startOfMonth.toISOString(),
         end: endOfMonth.toISOString(),
       });
 
       const logs = await Promise.all(
         habits.map(async (habit) => {
-          console.log(
+          logger.debug(
             `[HABIT_LOGS] Fetching logs for habit: ${habit.name} (${habit.id})`
           );
           const habitLogs = await fetchHabitLogs(
@@ -91,7 +92,7 @@ export function DashboardContent() {
             endOfMonth,
             user.id
           );
-          console.log(
+          logger.debug(
             `[HABIT_LOGS] Found ${habitLogs.length} logs for ${habit.name}`
           );
           return habitLogs;
@@ -99,7 +100,7 @@ export function DashboardContent() {
       );
 
       const flattenedLogs = logs.flat();
-      console.log("[HABIT_LOGS] Total logs fetched:", flattenedLogs.length);
+      logger.debug("[HABIT_LOGS] Total logs fetched:", flattenedLogs.length);
       return flattenedLogs;
     },
     enabled: !!habits && !!user?.id,
@@ -108,12 +109,12 @@ export function DashboardContent() {
 
   // Add logging for when habits change
   useEffect(() => {
-    console.log("[HABITS] Habits updated:", habits.length);
+    logger.debug("[HABITS] Habits updated:", habits.length);
   }, [habits]);
 
   // Add logging for when logs change
   useEffect(() => {
-    console.log("[LOGS] Logs updated:", habitLogs.length);
+    logger.debug("[LOGS] Logs updated:", habitLogs.length);
   }, [habitLogs]);
 
   const completeHabitMutation = useMutation({

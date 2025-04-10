@@ -12,6 +12,7 @@ import {
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import type { StreakHeatmapProps } from "~/types/chart";
 import { FrequencyType } from "~/types/common/enums";
+import { logger } from "~/lib/utils/logger";
 import {
   Card,
   CardContent,
@@ -39,7 +40,7 @@ export function StreakHeatmap({ habits, habitLogs }: StreakHeatmapProps) {
 
   // Generate chart data
   const chartData = React.useMemo(() => {
-    console.log(
+    logger.debug(
       "[STREAK_HEATMAP] Input data:",
       JSON.stringify(
         {
@@ -104,7 +105,7 @@ export function StreakHeatmap({ habits, habitLogs }: StreakHeatmapProps) {
 
       // Log data for today
       if (format(date, "yyyy-MM-dd") === format(today, "yyyy-MM-dd")) {
-        console.log(
+        logger.debug(
           "[STREAK_HEATMAP] Today's data:",
           JSON.stringify(
             {
@@ -130,7 +131,7 @@ export function StreakHeatmap({ habits, habitLogs }: StreakHeatmapProps) {
       return dayData;
     });
 
-    console.log(
+    logger.debug(
       "[STREAK_HEATMAP] Chart data:",
       JSON.stringify(
         {
@@ -167,7 +168,7 @@ export function StreakHeatmap({ habits, habitLogs }: StreakHeatmapProps) {
       ),
     };
 
-    console.log(
+    logger.debug(
       "[STREAK_HEATMAP] Totals calculation:",
       JSON.stringify(
         {

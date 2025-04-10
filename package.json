@@ -19,7 +19,6 @@
     "typecheck": "tsc --noEmit",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
-    "reorganize": "tsx src/scripts/reorganize.ts",
     "migrate:clean": "tsx src/scripts/migrate-to-clean.ts"
   },
   "dependencies": {
