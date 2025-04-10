@@ -1,196 +1,158 @@
-# Code Quality Improvements Plan
+I'll help you review the API structure. Let me first examine the contents of both API directories:
 
-## 1. Performance Issues
+Ran tool
 
-### Problems:
+Ran tool
+Let me examine some key files to understand the API structure better:
 
-- Excessive console logging in `dashboard-content.tsx` and `streak-heatmap.tsx`
-- Multiple unnecessary re-renders in `use-habit-operations.ts`
-- Redundant date calculations across components
-- Inefficient data fetching patterns in `use-dashboard-queries.ts`
+Read file: src/app/api/habits/route.ts
 
-### Fix Plan:
+Read file: src/app/api/habits/[id]/toggle/route.ts
 
-1. Remove production console logs
+Read file: src/app/api/habits/logs/route.ts
+After reviewing the API structure, here's my analysis:
 
-   - Create development-only logging utility
-   - Replace direct console.log calls with utility
-   - Add proper error logging
+**Current Structure:**
 
-2. Optimize re-renders
+1. **Habits API (`/api/habits/`)**
 
-   - Implement proper useMemo/useCallback usage
-   - Break down complex components
-   - Use React.memo where appropriate
+   - Main CRUD operations (`route.ts`)
+   - Nested routes:
+     - `[id]/` - Individual habit operations
+     - `analytics/` - Habit analytics
+     - `filtered/` - Filtered habit queries
+     - `logs/` - Habit completion logs
 
-3. Consolidate date calculations
+2. **Goals API (`/api/goals/`)**
+   - Main CRUD operations (`route.ts`)
+   - Nested routes:
+     - `[id]/` - Individual goal operations
 
-   - Create shared date utility functions
-   - Cache frequently used date calculations
-   - Implement proper date comparison utilities
+**Strengths:**
 
-4. Improve data fetching
-   - Implement proper caching strategies
-   - Optimize query dependencies
-   - Add proper loading states
+1. **Clean Organization**: The API follows a RESTful structure with clear separation of concerns
+2. **Type Safety**: Strong TypeScript typing throughout
+3. **Error Handling**: Consistent error response format using `ApiResponse` type
+4. **Authentication**: Proper auth checks using Clerk
+5. **Validation**: Zod schema validation for inputs
+6. **Logging**: Good logging practices for debugging
 
-## 2. Code Duplication
+**Areas for Improvement:**
 
-### Problems:
+1. **Consistency Issues:**
 
-- Date manipulation logic repeated
-- Habit completion calculation logic duplicated
-- Similar error handling patterns
-- Common utility functions not shared
+   - Some endpoints return just the data, others return `{ data: ... }` format
+   - Inconsistent error handling patterns (some use ZodError, others don't)
+   - Inconsistent logging formats
 
-### Fix Plan:
+2. **Performance Concerns:**
 
-1. Create shared utilities
+   - The toggle endpoint makes multiple database queries that could be optimized
+   - Log fetching could benefit from pagination
+   - No caching strategy implemented
 
-   - Date manipulation utilities
-   - Habit calculation utilities
-   - Error handling utilities
+3. **Security:**
 
-2. Implement proper hooks
+   - Some endpoints don't verify user ownership of resources
+   - No rate limiting implemented
+   - No input sanitization beyond Zod validation
 
-   - Create custom hooks for common operations
-   - Share state management logic
-   - Standardize data fetching patterns
+4. **Architecture:**
+   - Business logic mixed with route handlers
+   - No clear separation between API layer and service layer
+   - Duplicate code in error handling and logging
 
-3. Standardize error handling
-   - Create error boundary components
-   - Implement consistent error handling patterns
-   - Add proper error recovery
+**Recommendations:**
 
-## 3. Unused Code
+1. **Standardize Response Format:**
 
-### Problems:
+```typescript
+// Create a utility function for responses
+const apiResponse = <T>(data: T, status = 200) =>
+  NextResponse.json<ApiResponse<T>>({ data }, { status });
 
-- Unused `reorganize.ts` script
-- Potentially unused type definitions
-- Unused imports
+const apiError = (code: string, message: string, status = 500, details?: any) =>
+  NextResponse.json<ApiResponse<null>>(
+    {
+      data: null,
+      error: { code, message, details },
+    },
+    { status }
+  );
+```
 
-### Fix Plan:
+2. **Implement Service Layer:**
 
-1. Code cleanup
+```typescript
+// services/habit.service.ts
+export class HabitService {
+  async toggleHabit(id: string, userId: string) {
+    // Business logic here
+  }
+}
+```
 
-   - Remove unused scripts
-   - Clean up unused types
-   - Remove unused imports
-   - Add proper tree-shaking
+3. **Add Caching:**
 
-2. Documentation
-   - Document code removal decisions
-   - Update README with current structure
-   - Add code usage guidelines
+```typescript
+// Add Redis or similar for caching
+const cache = new Redis(process.env.REDIS_URL);
+```
 
-## 4. Spaghetti Code
+4. **Implement Rate Limiting:**
 
-### Problems:
+```typescript
+import rateLimit from "express-rate-limit";
 
-- Complex state management
-- Overly complex date comparison logic
-- Mixed concerns in components
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+});
+```
 
-### Fix Plan:
+5. **Add Input Sanitization:**
 
-1. Refactor state management
+```typescript
+import { sanitize } from "sanitize-html";
 
-   - Implement proper state management patterns
-   - Break down complex state
-   - Add proper state persistence
+const sanitizeInput = (input: any) => {
+  // Sanitize all string inputs
+  return sanitize(input);
+};
+```
 
-2. Simplify date logic
+6. **Optimize Database Queries:**
 
-   - Create dedicated date utilities
-   - Implement proper date comparison
-   - Add proper date validation
+```typescript
+// Use transactions for multiple operations
+await db.transaction(async (tx) => {
+  await tx.insert(...);
+  await tx.update(...);
+});
+```
 
-3. Separate concerns
-   - Break down large components
-   - Implement proper component hierarchy
-   - Add proper data flow
+7. **Add Pagination:**
 
-## 5. Poor Practices
+```typescript
+// Add pagination to log fetching
+const getLogs = async (habitId: string, page = 1, limit = 10) => {
+  const offset = (page - 1) * limit;
+  return db
+    .select()
+    .from(habitLogs)
+    .where(eq(habitLogs.habitId, habitId))
+    .limit(limit)
+    .offset(offset);
+};
+```
 
-### Problems:
+8. **Implement Health Checks:**
 
-- Inconsistent error handling
-- Lack of proper type guards
-- Missing cleanup in useEffect
-- Inconsistent state management
+```typescript
+// Add health check endpoint
+export async function GET() {
+  return NextResponse.json({ status: "ok" });
+}
+```
 
-### Fix Plan:
-
-1. Standardize practices
-
-   - Create coding standards document
-   - Implement proper type checking
-   - Add proper cleanup in effects
-
-2. Improve type safety
-
-   - Add proper type guards
-   - Implement strict type checking
-   - Add proper type documentation
-
-3. Enhance state management
-   - Standardize state management approach
-   - Implement proper state persistence
-   - Add proper state validation
-
-## Implementation Order
-
-1. Quick Wins (1-2 days)
-
-   - Remove console logs
-   - Clean up unused code
-   - Fix simple type issues
-
-2. Core Improvements (3-5 days)
-
-   - Implement shared utilities
-   - Standardize error handling
-   - Improve state management
-
-3. Performance Optimization (2-3 days)
-
-   - Optimize re-renders
-   - Improve data fetching
-   - Add proper caching
-
-4. Code Organization (2-3 days)
-
-   - Break down large components
-   - Implement proper architecture
-   - Add proper documentation
-
-5. Testing and Validation (2-3 days)
-   - Add unit tests
-   - Add integration tests
-   - Validate improvements
-
-## Success Metrics
-
-1. Performance
-
-   - Reduced bundle size
-   - Improved load times
-   - Reduced re-renders
-
-2. Code Quality
-
-   - Reduced code duplication
-   - Improved type coverage
-   - Better error handling
-
-3. Maintainability
-
-   - Improved documentation
-   - Better code organization
-   - Clearer architecture
-
-4. Developer Experience
-   - Faster development
-   - Better debugging
-   - Clearer patterns
+Would you like me to help implement any of these improvements? We can tackle them one at a time to improve the API's reliability, performance, and maintainability.

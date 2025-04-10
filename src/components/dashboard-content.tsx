@@ -5,7 +5,8 @@ import { useUser } from "@clerk/nextjs";
 import { useMemo, useState, useEffect } from "react";
 import { FrequencyType } from "~/types/common/enums";
 import { toggleHabit } from "~/lib/api";
-import type { Habit } from "~/types";
+import type { Habit, HabitLog } from "~/types";
+import type { ApiResponse } from "~/types/api/validation";
 import { logger } from "~/lib/logger";
 import {
   getToday,
@@ -200,33 +201,48 @@ export function DashboardContent() {
           isCurrentlyCompleted: isCompleted,
         },
       });
+
       const result = await toggleHabit(habit, isCompleted);
       return result;
     },
-    onSuccess: (updatedHabit) => {
+    onSuccess: (data) => {
       logger.debug("[HABIT] Habit toggled successfully", {
         context: "habit_toggle",
         data: {
-          habitId: updatedHabit.id,
-          habitName: updatedHabit.name,
-          lastCompleted: updatedHabit.lastCompleted,
-          streak: updatedHabit.streak,
+          habitId: data.habit.id,
+          habitName: data.habit.name,
+          lastCompleted: data.habit.lastCompleted,
+          streak: data.habit.streak,
         },
       });
+
       // Update the habits query data
       queryClient.setQueryData<Habit[]>(
         ["habits"],
         (old) =>
-          old?.map((h) => (h.id === updatedHabit.id ? updatedHabit : h)) ?? []
+          old?.map((h) => (h.id === data.habit.id ? data.habit : h)) ?? []
       );
-      // Invalidate the habit logs query to refresh the completion status
-      queryClient.invalidateQueries({ queryKey: ["habitLogs"] });
+
+      // Update the habit logs query data for this specific habit
+      queryClient.setQueryData<HabitLog[]>(["habitLogs"], (old) => {
+        if (!old) return data.logs;
+
+        // Remove existing logs for this habit in the current month
+        const filteredLogs = old.filter(
+          (log) =>
+            log.habitId !== data.habit.id ||
+            !isSameDay(new Date(log.completedAt), new Date())
+        );
+
+        // Add the new logs
+        return [...filteredLogs, ...data.logs];
+      });
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       logger.error("[HABIT] Failed to toggle habit", {
         context: "habit_toggle",
         data: {
-          error: error instanceof Error ? error.message : "Unknown error",
+          error: error.message,
         },
       });
     },
