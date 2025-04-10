@@ -48,7 +48,8 @@ export function DashboardContent() {
   const { data: habits = [], isLoading } = useQuery({
     queryKey: ["habits"],
     queryFn: async () => {
-      const response = await fetchHabits(user?.id ?? "");
+      if (!user?.id) throw new Error("User not authenticated");
+      const response = await fetchHabits(user.id);
       return response;
     },
   });
@@ -56,19 +57,23 @@ export function DashboardContent() {
   const { data: fetchedHabitLogs = [] } = useQuery({
     queryKey: ["habitLogs"],
     queryFn: async () => {
+      if (!user?.id) throw new Error("User not authenticated");
       const today = new Date();
       const startDate = new Date(today);
       startDate.setDate(today.getDate() - 30); // Last 30 days
       const response = await Promise.all(
-        habits.map((habit) => fetchHabitLogs(habit.id, startDate, today))
+        habits.map((habit) =>
+          fetchHabitLogs(habit.id, startDate, today, user.id)
+        )
       );
       return response.flat();
     },
-    enabled: habits.length > 0,
+    enabled: habits.length > 0 && !!user?.id,
   });
 
   const completeHabitMutation = useMutation({
     mutationFn: async (habit: Habit) => {
+      if (!user?.id) throw new Error("User not authenticated");
       const isCompleted = habitLogs.some(
         (log) =>
           log.habitId === habit.id &&
@@ -113,6 +118,7 @@ export function DashboardContent() {
   const { data: habitLogs = [], isLoading: isLoadingLogs } = useQuery({
     queryKey: ["habitLogs"],
     queryFn: async () => {
+      if (!user?.id) throw new Error("User not authenticated");
       console.log("[HABIT_LOGS] Starting fetch for all habits");
       const today = new Date();
       const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -135,7 +141,8 @@ export function DashboardContent() {
           const habitLogs = await fetchHabitLogs(
             habit.id,
             startOfMonth,
-            endOfMonth
+            endOfMonth,
+            user.id
           );
           console.log(
             `[HABIT_LOGS] Found ${habitLogs.length} logs for ${habit.name}`
@@ -148,7 +155,7 @@ export function DashboardContent() {
       console.log("[HABIT_LOGS] Total logs fetched:", flattenedLogs.length);
       return flattenedLogs;
     },
-    enabled: !!habits,
+    enabled: !!habits && !!user?.id,
     staleTime: 1000 * 60 * 5, // Consider data stale after 5 minutes
   });
 
