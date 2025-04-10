@@ -1,5 +1,3 @@
-"use client";
-
 import { format } from "date-fns";
 import {
   LineChart,
@@ -19,18 +17,31 @@ import {
   CardHeader,
   CardTitle,
 } from "~/components/ui/card";
-import { mockHabits } from "~/lib/mock-data";
+import { fetchHabitLogs } from "~/lib/api";
+import { getHabitById } from "~/server/queries";
+import { auth } from "@clerk/nextjs/server";
+import { notFound } from "next/navigation";
 import type { HabitLog } from "~/types";
 
-export default function HabitPage({ params }: { params: { id: string } }) {
-  const habit = mockHabits.find((h) => h.id === params.id);
+export default async function HabitPage({
+  params,
+}: {
+  params: { id: string };
+}) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Not authenticated");
 
-  if (!habit) {
-    return <div>Habit not found</div>;
+  const habit = await getHabitById(params.id);
+  if (!habit || habit.userId !== userId) {
+    notFound();
   }
 
-  // Assuming we'll get habitLogs from somewhere - for now using empty array
-  const habitLogs: HabitLog[] = [];
+  // Get habit logs for the last 30 days
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - 30);
+  const endDate = new Date();
+
+  const habitLogs = await fetchHabitLogs(habit.id, startDate, endDate, userId);
   const chartData = habitLogs
     .filter((log) => log.habitId === habit.id)
     .map((log) => ({
