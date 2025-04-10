@@ -1,6 +1,5 @@
 import type { Habit, HabitLog } from "~/types";
 import type { ApiResponse } from "~/types/api/validation";
-import { useAuth } from "@clerk/nextjs";
 
 const getBaseUrl = () => {
   if (process.env.NODE_ENV === "production") {
