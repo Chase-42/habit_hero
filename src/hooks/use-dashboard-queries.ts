@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchHabits, fetchHabitLogs } from "~/lib/api-client";
+import { fetchHabits, fetchHabitLogs } from "~/lib/api";
 import type { Habit, HabitLog } from "~/types";
 import { FrequencyType } from "~/types/common/enums";
 

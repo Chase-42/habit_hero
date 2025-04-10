@@ -1,4 +1,4 @@
-import { fetchHabitLogs } from "~/lib/api-client";
+import { fetchHabitLogs } from "~/lib/api";
 import type { Habit, HabitLog } from "~/types";
 
 export async function fetchHabitLogsForDateRange(

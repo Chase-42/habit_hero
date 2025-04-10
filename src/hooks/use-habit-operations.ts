@@ -6,7 +6,9 @@ import {
   fetchHabits,
   toggleHabit,
   fetchHabitLogs,
-} from "~/lib/api-client";
+  completeHabit,
+  deleteHabitLog,
+} from "~/lib/api";
 import { FrequencyType } from "~/types/common/enums";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ApiResponse } from "~/types/api/validation";

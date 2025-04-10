@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchHabitLogs } from "~/lib/api-client";
+import { fetchHabitLogs } from "~/lib/api";
 import type { HabitLog } from "~/types";
 
 interface UseHabitLogsProps {

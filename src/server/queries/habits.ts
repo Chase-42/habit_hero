@@ -286,12 +286,15 @@ function getGroupKey(date: Date, groupBy: "day" | "week" | "month"): string {
       // Get Monday of the week
       const day = date.getDay();
       const diff = date.getDate() - day + (day === 0 ? -6 : 1);
-      const monday = new Date(date.setDate(diff));
+      const monday = new Date(date);
+      monday.setDate(diff);
+      monday.setHours(0, 0, 0, 0);
       return monday.toISOString().split("T")[0] ?? monday.toDateString();
     }
     case "month":
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-01`;
     default:
-      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      return date.toISOString().split("T")[0] ?? date.toDateString();
   }
 }
 
@@ -309,16 +312,33 @@ export async function getCompletionHistory(
   const groupedLogs = new Map<string, HabitLog[]>();
 
   for (const log of logs) {
-    const key = getGroupKey(log.completedAt, groupBy);
+    const date = new Date(log.completedAt);
+    date.setHours(0, 0, 0, 0);
+    let key: string;
+
+    switch (groupBy) {
+      case "day":
+        key = date.toISOString().split("T")[0] ?? date.toDateString();
+        break;
+      case "week": {
+        // Get Monday of the week
+        const day = date.getDay();
+        const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+        const monday = new Date(date);
+        monday.setDate(diff);
+        monday.setHours(0, 0, 0, 0);
+        key = monday.toISOString().split("T")[0] ?? monday.toDateString();
+        break;
+      }
+      case "month":
+        key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-01`;
+        break;
+      default:
+        key = date.toISOString().split("T")[0] ?? date.toDateString();
+    }
+
     const existingLogs = groupedLogs.get(key) ?? [];
-    groupedLogs.set(key, [
-      ...existingLogs,
-      {
-        ...log,
-        createdAt: log.completedAt,
-        updatedAt: log.completedAt,
-      },
-    ]);
+    groupedLogs.set(key, [...existingLogs, log]);
   }
 
   const summaries: CompletionSummary[] = [];
@@ -353,7 +373,11 @@ export async function getStreakHistory(
   const conditions = [eq(habitLogs.habitId, habitId)];
 
   if (startDate && endDate) {
-    conditions.push(between(habitLogs.completedAt, startDate, endDate));
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+    conditions.push(between(habitLogs.completedAt, start, end));
   }
 
   const logs = await db
@@ -368,18 +392,18 @@ export async function getStreakHistory(
   let currentStreak = 0;
 
   for (const currentLog of logs) {
+    const logDate = new Date(currentLog.completedAt);
+    logDate.setHours(0, 0, 0, 0);
+
     const previousLog =
       streakHistory.length > 0 ? logs[logs.indexOf(currentLog) - 1] : null;
 
     // For the first log, check against habit creation date
     if (!previousLog) {
-      const isOnTime = await wasHabitCompletedOnTime(
-        habit,
-        currentLog.completedAt
-      );
+      const isOnTime = await wasHabitCompletedOnTime(habit, logDate);
       currentStreak = isOnTime ? 1 : 0;
       streakHistory.push({
-        date: currentLog.completedAt,
+        date: logDate,
         streak: currentStreak,
         wasStreakBroken: !isOnTime,
       });
@@ -387,19 +411,19 @@ export async function getStreakHistory(
     }
 
     // Create a temporary habit state to check if this completion was on time
+    const previousLogDate = new Date(previousLog.completedAt);
+    previousLogDate.setHours(0, 0, 0, 0);
+
     const tempHabit = {
       ...habit,
-      lastCompleted: previousLog.completedAt,
+      lastCompleted: previousLogDate,
     };
 
-    const isOnTime = await wasHabitCompletedOnTime(
-      tempHabit,
-      currentLog.completedAt
-    );
+    const isOnTime = await wasHabitCompletedOnTime(tempHabit, logDate);
     currentStreak = isOnTime ? currentStreak + 1 : 1;
 
     streakHistory.push({
-      date: currentLog.completedAt,
+      date: logDate,
       streak: currentStreak,
       wasStreakBroken: !isOnTime,
     });
