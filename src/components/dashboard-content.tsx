@@ -6,7 +6,7 @@ import { useMemo, useState, useEffect } from "react";
 import { FrequencyType } from "~/types/common/enums";
 import { toggleHabit } from "~/lib/api";
 import type { Habit } from "~/types";
-import { logger } from "~/lib/utils/logger";
+import { logger } from "~/lib/logger";
 import {
   getToday,
   getTomorrow,
@@ -63,48 +63,105 @@ export function DashboardContent() {
     queryFn: async () => {
       if (!user?.id) throw new Error("User not authenticated");
       const response = await fetchHabits();
+      logger.debug("[HABITS] Fetched habits data:", {
+        context: "habits_fetch",
+        data: response.map((h) => ({
+          id: h.id,
+          name: h.name,
+          isActive: h.isActive,
+          isArchived: h.isArchived,
+          frequencyType: h.frequencyType,
+          frequencyValue: h.frequencyValue,
+          createdAt: h.createdAt,
+        })),
+      });
       return response;
     },
   });
 
   const todayHabits = useMemo(() => {
-    return getTodayHabitsUtil(habits);
+    logger.debug("[HABITS] Calculating today's habits", {
+      context: "today_habits",
+      data: {
+        totalHabits: habits.length,
+        habits: habits.map((h) => ({
+          id: h.id,
+          name: h.name,
+          isActive: h.isActive,
+          isArchived: h.isArchived,
+          frequencyType: h.frequencyType,
+          frequencyValue: h.frequencyValue,
+        })),
+      },
+    });
+    const result = getTodayHabitsUtil(habits);
+    logger.debug("[HABITS] Today's habits result", {
+      context: "today_habits",
+      data: {
+        totalHabits: habits.length,
+        todayHabitsCount: result.length,
+        todayHabits: result.map((h) => ({
+          id: h.id,
+          name: h.name,
+          frequencyType: h.frequencyType,
+        })),
+      },
+    });
+    return result;
   }, [habits]);
 
   const { data: habitLogs = [], isLoading: isLoadingLogs } = useQuery({
     queryKey: ["habitLogs"],
     queryFn: async () => {
       if (!user?.id) throw new Error("User not authenticated");
-      logger.debug("[HABIT_LOGS] Starting fetch for all habits");
+      logger.debug("[HABIT_LOGS] Starting fetch for all habits", {
+        context: "habit_logs_fetch",
+        data: { userId: user.id },
+      });
 
       const startOfMonth = getStartOfMonth();
       const endOfMonth = getEndOfMonth();
 
-      logger.debug("[HABIT_LOGS] Date range:", {
-        start: startOfMonth.toISOString(),
-        end: endOfMonth.toISOString(),
+      logger.debug("[HABIT_LOGS] Date range", {
+        context: "habit_logs_fetch",
+        data: {
+          start: startOfMonth.toISOString(),
+          end: endOfMonth.toISOString(),
+        },
       });
 
       const logs = await Promise.all(
         habits.map(async (habit) => {
-          logger.debug(
-            `[HABIT_LOGS] Fetching logs for habit: ${habit.name} (${habit.id})`
-          );
+          logger.debug("[HABIT_LOGS] Fetching logs for habit", {
+            context: "habit_logs_fetch",
+            data: {
+              habitId: habit.id,
+              habitName: habit.name,
+            },
+          });
           const habitLogs = await fetchHabitLogs(
             habit.id,
             startOfMonth,
             endOfMonth,
             user.id
           );
-          logger.debug(
-            `[HABIT_LOGS] Found ${habitLogs.length} logs for ${habit.name}`
-          );
+          logger.debug("[HABIT_LOGS] Found logs for habit", {
+            context: "habit_logs_fetch",
+            data: {
+              habitId: habit.id,
+              habitName: habit.name,
+              logCount: habitLogs.length,
+            },
+          });
           return habitLogs;
         })
       );
 
       const flattenedLogs = logs.flat();
-      logger.debug("[HABIT_LOGS] Total logs fetched:", flattenedLogs.length);
+      logger.debug("[HABIT_LOGS] Total logs fetched", {
+        context: "habit_logs_fetch",
+        data: { count: flattenedLogs.length },
+      });
       return flattenedLogs;
     },
     enabled: !!habits && !!user?.id,
@@ -113,12 +170,18 @@ export function DashboardContent() {
 
   // Add logging for when habits change
   useEffect(() => {
-    logger.debug("[HABITS] Habits updated:", habits.length);
+    logger.debug("[HABITS] Habits updated", {
+      context: "habits_update",
+      data: { count: habits.length },
+    });
   }, [habits]);
 
   // Add logging for when logs change
   useEffect(() => {
-    logger.debug("[LOGS] Logs updated:", habitLogs.length);
+    logger.debug("[LOGS] Logs updated", {
+      context: "logs_update",
+      data: { count: habitLogs.length },
+    });
   }, [habitLogs]);
 
   const completeHabitMutation = useMutation({
@@ -129,15 +192,43 @@ export function DashboardContent() {
           log.habitId === habit.id &&
           isSameDay(new Date(log.completedAt), getToday())
       );
+      logger.debug("[HABIT] Toggling habit completion", {
+        context: "habit_toggle",
+        data: {
+          habitId: habit.id,
+          habitName: habit.name,
+          isCurrentlyCompleted: isCompleted,
+        },
+      });
       const result = await toggleHabit(habit, isCompleted);
       return result;
     },
     onSuccess: (updatedHabit) => {
+      logger.debug("[HABIT] Habit toggled successfully", {
+        context: "habit_toggle",
+        data: {
+          habitId: updatedHabit.id,
+          habitName: updatedHabit.name,
+          lastCompleted: updatedHabit.lastCompleted,
+          streak: updatedHabit.streak,
+        },
+      });
+      // Update the habits query data
       queryClient.setQueryData<Habit[]>(
         ["habits"],
         (old) =>
           old?.map((h) => (h.id === updatedHabit.id ? updatedHabit : h)) ?? []
       );
+      // Invalidate the habit logs query to refresh the completion status
+      queryClient.invalidateQueries({ queryKey: ["habitLogs"] });
+    },
+    onError: (error) => {
+      logger.error("[HABIT] Failed to toggle habit", {
+        context: "habit_toggle",
+        data: {
+          error: error instanceof Error ? error.message : "Unknown error",
+        },
+      });
     },
   });
 
@@ -180,6 +271,24 @@ export function DashboardContent() {
   };
 
   const stats = useMemo(() => {
+    logger.debug("[DASHBOARD_STATS] Calculating stats", {
+      context: "stats_calculation",
+      data: {
+        habitsCount: habits.length,
+        logsCount: habitLogs.length,
+        habits: habits.map((h) => ({
+          id: h.id,
+          name: h.name,
+          isActive: h.isActive,
+          isArchived: h.isArchived,
+          streak: h.streak,
+          lastCompleted: h.lastCompleted,
+          frequencyType: h.frequencyType,
+          frequencyValue: h.frequencyValue,
+        })),
+      },
+    });
+
     console.log(
       "[DASHBOARD_STATS] Input data:",
       JSON.stringify(
@@ -356,7 +465,7 @@ export function DashboardContent() {
               </div>
 
               <div className="grid grid-cols-1 gap-3 px-3 md:grid-cols-2">
-                <Card className="flex flex-col overflow-hidden rounded-sm">
+                <Card className="flex flex-col overflow-hidden">
                   <CardHeader className="px-3 pb-2 pt-3">
                     <Skeleton className="h-4 w-32" />
                     <Skeleton className="mt-1 h-3 w-48" />
@@ -431,7 +540,7 @@ export function DashboardContent() {
   }
 
   return (
-    <main className="flex h-[calc(100vh-4rem)] flex-col">
+    <main className="flex h-[calc(100vh-4rem)] flex-col overflow-hidden">
       <header className="flex-none border-b bg-background px-4 py-3">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -470,14 +579,14 @@ export function DashboardContent() {
           </TabsList>
 
           <div className="flex-1 overflow-hidden">
-            <TabsContent value="overview" className="h-full p-4">
-              <div className="flex h-full flex-col gap-4">
+            <TabsContent value="overview" className="h-full">
+              <div className="flex h-full flex-col gap-4 p-4">
                 <div className="grid flex-none grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                   <StatsCards habits={habits} habitLogs={habitLogs} />
                 </div>
 
                 <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-2">
-                  <Card className="flex flex-col">
+                  <Card className="flex flex-col overflow-hidden">
                     <CardHeader className="flex-none">
                       <h3 className="text-sm font-medium">
                         Completion History
@@ -498,7 +607,7 @@ export function DashboardContent() {
                     </CardContent>
                   </Card>
 
-                  <Card className="flex flex-col">
+                  <Card className="flex flex-col overflow-hidden">
                     <CardHeader className="flex-none">
                       <h3 className="text-sm font-medium">
                         Today&apos;s Habits
@@ -509,7 +618,7 @@ export function DashboardContent() {
                     </CardHeader>
                     <CardContent className="min-h-0 flex-1 p-0">
                       <ScrollArea className="h-full">
-                        <div className="p-4">
+                        <div className="space-y-2 p-4">
                           <HabitList
                             habits={todayHabits}
                             habitLogs={habitLogs}
