@@ -7,6 +7,14 @@ import { FrequencyType } from "~/types/common/enums";
 import { toggleHabit } from "~/lib/api";
 import type { Habit } from "~/types";
 import { logger } from "~/lib/utils/logger";
+import {
+  getToday,
+  getTomorrow,
+  getStartOfMonth,
+  getEndOfMonth,
+  isSameDay,
+  formatDate,
+} from "~/lib/utils/dates";
 
 import { Card, CardContent, CardHeader } from "~/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
@@ -68,13 +76,9 @@ export function DashboardContent() {
     queryFn: async () => {
       if (!user?.id) throw new Error("User not authenticated");
       logger.debug("[HABIT_LOGS] Starting fetch for all habits");
-      const today = new Date();
-      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-      const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
 
-      // Set proper time for start and end dates
-      startOfMonth.setHours(0, 0, 0, 0);
-      endOfMonth.setHours(23, 59, 59, 999);
+      const startOfMonth = getStartOfMonth();
+      const endOfMonth = getEndOfMonth();
 
       logger.debug("[HABIT_LOGS] Date range:", {
         start: startOfMonth.toISOString(),
@@ -123,8 +127,7 @@ export function DashboardContent() {
       const isCompleted = habitLogs.some(
         (log) =>
           log.habitId === habit.id &&
-          new Date(log.completedAt).toISOString().split("T")[0] ===
-            new Date().toISOString().split("T")[0]
+          isSameDay(new Date(log.completedAt), getToday())
       );
       const result = await toggleHabit(habit, isCompleted);
       return result;
