@@ -1,6 +1,6 @@
 import type { Habit, HabitLog } from "~/types";
 import type { ApiResponse } from "~/types/api/validation";
-import { auth } from "@clerk/nextjs/server";
+import { useAuth } from "@clerk/nextjs";
 
 const getBaseUrl = () => {
   if (process.env.NODE_ENV === "production") {
@@ -9,17 +9,13 @@ const getBaseUrl = () => {
   return "http://localhost:3000";
 };
 
-const getHeaders = async () => {
+const getHeaders = async (userId: string) => {
   const headers: HeadersInit = {
     "Content-Type": "application/json",
   };
 
-  // If we're in a server component, we can get the auth token from the request
-  if (typeof window === "undefined") {
-    const { userId } = await auth();
-    if (userId) {
-      headers.Authorization = `Bearer ${userId}`;
-    }
+  if (userId) {
+    headers.Authorization = `Bearer ${userId}`;
   }
 
   return headers;
@@ -27,7 +23,7 @@ const getHeaders = async () => {
 
 export async function fetchHabits(userId: string): Promise<Habit[]> {
   const response = await fetch(`${getBaseUrl()}/api/habits?userId=${userId}`, {
-    headers: await getHeaders(),
+    headers: await getHeaders(userId),
     cache: "no-store",
   });
 
@@ -45,7 +41,7 @@ export async function fetchHabits(userId: string): Promise<Habit[]> {
 export async function createHabit(data: Omit<Habit, "id">): Promise<Habit> {
   const response = await fetch(`${getBaseUrl()}/api/habits`, {
     method: "POST",
-    headers: await getHeaders(),
+    headers: await getHeaders(data.userId),
     body: JSON.stringify(data),
   });
 
@@ -60,12 +56,15 @@ export async function createHabit(data: Omit<Habit, "id">): Promise<Habit> {
   return result.data;
 }
 
-export async function completeHabit(habitId: string): Promise<HabitLog> {
+export async function completeHabit(
+  habitId: string,
+  userId: string
+): Promise<HabitLog> {
   const response = await fetch(
     `${getBaseUrl()}/api/habits/${habitId}/complete`,
     {
       method: "POST",
-      headers: await getHeaders(),
+      headers: await getHeaders(userId),
     }
   );
 
@@ -83,7 +82,8 @@ export async function completeHabit(habitId: string): Promise<HabitLog> {
 export async function fetchHabitLogs(
   habitId: string,
   startDate: Date,
-  endDate: Date
+  endDate: Date,
+  userId: string
 ): Promise<HabitLog[]> {
   const url = new URL(`${getBaseUrl()}/api/habits/logs`);
   url.searchParams.append("habitId", habitId);
@@ -91,7 +91,7 @@ export async function fetchHabitLogs(
   url.searchParams.append("endDate", endDate.toISOString());
 
   const response = await fetch(url.toString(), {
-    headers: await getHeaders(),
+    headers: await getHeaders(userId),
     cache: "no-store",
   });
 
@@ -106,9 +106,9 @@ export async function fetchHabitLogs(
   return result.data;
 }
 
-export async function fetchTodaysLogs(): Promise<HabitLog[]> {
+export async function fetchTodaysLogs(userId: string): Promise<HabitLog[]> {
   const response = await fetch(`${getBaseUrl()}/api/habits/logs/today`, {
-    headers: await getHeaders(),
+    headers: await getHeaders(userId),
     cache: "no-store",
   });
 
@@ -123,10 +123,13 @@ export async function fetchTodaysLogs(): Promise<HabitLog[]> {
   return result.data;
 }
 
-export async function deleteHabitLog(logId: string): Promise<void> {
+export async function deleteHabitLog(
+  logId: string,
+  userId: string
+): Promise<void> {
   const response = await fetch(`${getBaseUrl()}/api/habits/logs/${logId}`, {
     method: "DELETE",
-    headers: await getHeaders(),
+    headers: await getHeaders(userId),
   });
 
   if (!response.ok) {
@@ -147,7 +150,7 @@ export async function toggleHabit(
     `${getBaseUrl()}/api/habits/${habit.id}/toggle`,
     {
       method: "PUT",
-      headers: await getHeaders(),
+      headers: await getHeaders(habit.userId),
       body: JSON.stringify({
         completed: !isCompleted,
         userId: habit.userId,
