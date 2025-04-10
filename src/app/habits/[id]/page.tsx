@@ -23,7 +23,7 @@ import { auth } from "@clerk/nextjs/server";
 import { notFound } from "next/navigation";
 import type { HabitLog } from "~/types";
 
-export default async function HabitPage({
+export default async function HabitDetailPage({
   params,
 }: {
   params: { id: string };
