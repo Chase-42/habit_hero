@@ -32,6 +32,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "~/components/ui/alert-dialog";
+import {
+  getTodayHabits as getTodayHabitsUtil,
+  isHabitCompletedOnDate,
+} from "~/lib/utils/habits";
 
 export function DashboardContent() {
   const { user } = useUser();
@@ -54,65 +58,8 @@ export function DashboardContent() {
     },
   });
 
-  const { data: fetchedHabitLogs = [] } = useQuery({
-    queryKey: ["habitLogs"],
-    queryFn: async () => {
-      if (!user?.id) throw new Error("User not authenticated");
-      const today = new Date();
-      const startDate = new Date(today);
-      startDate.setDate(today.getDate() - 30); // Last 30 days
-      const response = await Promise.all(
-        habits.map((habit) =>
-          fetchHabitLogs(habit.id, startDate, today, user.id)
-        )
-      );
-      return response.flat();
-    },
-    enabled: habits.length > 0 && !!user?.id,
-  });
-
-  const completeHabitMutation = useMutation({
-    mutationFn: async (habit: Habit) => {
-      if (!user?.id) throw new Error("User not authenticated");
-      const isCompleted = habitLogs.some(
-        (log) =>
-          log.habitId === habit.id &&
-          new Date(log.completedAt).toISOString().split("T")[0] ===
-            new Date().toISOString().split("T")[0]
-      );
-      const result = await toggleHabit(habit, isCompleted);
-      return result;
-    },
-    onSuccess: (updatedHabit) => {
-      queryClient.setQueryData<Habit[]>(
-        ["habits"],
-        (old) =>
-          old?.map((h) => (h.id === updatedHabit.id ? updatedHabit : h)) ?? []
-      );
-    },
-  });
-
-  const completeHabit = async (habit: Habit) => {
-    await completeHabitMutation.mutateAsync(habit);
-  };
-
   const todayHabits = useMemo(() => {
-    const today = new Date().getDay();
-    return habits.filter((habit) => {
-      if (!habit.isActive || habit.isArchived) return false;
-
-      if (habit.frequencyType === FrequencyType.Daily) return true;
-
-      if (habit.frequencyType === FrequencyType.Weekly) {
-        return habit.frequencyValue.days?.includes(today) ?? false;
-      }
-
-      if (habit.frequencyType === FrequencyType.Monthly) {
-        return new Date().getDate() === 1;
-      }
-
-      return false;
-    });
+    return getTodayHabitsUtil(habits);
   }, [habits]);
 
   const { data: habitLogs = [], isLoading: isLoadingLogs } = useQuery({
@@ -168,6 +115,31 @@ export function DashboardContent() {
   useEffect(() => {
     console.log("[LOGS] Logs updated:", habitLogs.length);
   }, [habitLogs]);
+
+  const completeHabitMutation = useMutation({
+    mutationFn: async (habit: Habit) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      const isCompleted = habitLogs.some(
+        (log) =>
+          log.habitId === habit.id &&
+          new Date(log.completedAt).toISOString().split("T")[0] ===
+            new Date().toISOString().split("T")[0]
+      );
+      const result = await toggleHabit(habit, isCompleted);
+      return result;
+    },
+    onSuccess: (updatedHabit) => {
+      queryClient.setQueryData<Habit[]>(
+        ["habits"],
+        (old) =>
+          old?.map((h) => (h.id === updatedHabit.id ? updatedHabit : h)) ?? []
+      );
+    },
+  });
+
+  const completeHabit = async (habit: Habit) => {
+    await completeHabitMutation.mutateAsync(habit);
+  };
 
   const handleAddHabit = async (
     habit: Omit<
@@ -465,14 +437,6 @@ export function DashboardContent() {
             </p>
           </div>
           <div className="flex items-center gap-4">
-            <Button
-              onClick={() => setIsAddModalOpen(true)}
-              variant="default"
-              className="flex items-center gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              Add Habit
-            </Button>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Calendar className="h-4 w-4" />
               <span>
@@ -505,7 +469,7 @@ export function DashboardContent() {
             <TabsContent value="overview" className="h-full p-4">
               <div className="flex h-full flex-col gap-4">
                 <div className="grid flex-none grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  <StatsCards habits={habits} habitLogs={fetchedHabitLogs} />
+                  <StatsCards habits={habits} habitLogs={habitLogs} />
                 </div>
 
                 <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-2">
@@ -523,7 +487,7 @@ export function DashboardContent() {
                         <div className="p-4">
                           <StreakHeatmap
                             habits={habits}
-                            habitLogs={fetchedHabitLogs}
+                            habitLogs={habitLogs}
                           />
                         </div>
                       </ScrollArea>
@@ -544,7 +508,7 @@ export function DashboardContent() {
                         <div className="p-4">
                           <HabitList
                             habits={todayHabits}
-                            habitLogs={fetchedHabitLogs}
+                            habitLogs={habitLogs}
                             onComplete={completeHabit}
                             onDelete={async (habit) => {
                               setHabitToDelete(habit);
@@ -574,7 +538,7 @@ export function DashboardContent() {
                     <div className="p-4">
                       <HabitList
                         habits={habits}
-                        habitLogs={fetchedHabitLogs}
+                        habitLogs={habitLogs}
                         onComplete={completeHabit}
                         onDelete={async (habit) => {
                           setHabitToDelete(habit);
@@ -600,10 +564,7 @@ export function DashboardContent() {
                 <CardContent className="min-h-0 flex-1 p-0">
                   <ScrollArea className="h-full">
                     <div className="p-4">
-                      <HabitCalendar
-                        habits={habits}
-                        habitLogs={fetchedHabitLogs}
-                      />
+                      <HabitCalendar habits={habits} habitLogs={habitLogs} />
                     </div>
                   </ScrollArea>
                 </CardContent>

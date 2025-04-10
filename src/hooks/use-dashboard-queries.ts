@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchHabits, fetchHabitLogs } from "~/lib/api";
+import { getTodayHabits as getTodayHabitsUtil } from "~/lib/utils/habits";
 import type { Habit, HabitLog } from "~/types";
 import { FrequencyType } from "~/types/common/enums";
 
@@ -13,7 +14,7 @@ export function useDashboardData(userId: string) {
   // Fetch habits
   const habitsQuery = useQuery({
     queryKey: ["habits", userId],
-    queryFn: () => fetchHabits(userId),
+    queryFn: () => fetchHabits(),
   });
 
   // Fetch today's logs for all habits
@@ -29,7 +30,7 @@ export function useDashboardData(userId: string) {
 
       const todayLogs = await Promise.all(
         habitsQuery.data.map((habit) =>
-          fetchHabitLogs(habit.id, today, tomorrow)
+          fetchHabitLogs(habit.id, today, tomorrow, userId)
         )
       );
       return todayLogs.flat();
@@ -49,7 +50,7 @@ export function useDashboardData(userId: string) {
 
       const recentLogs = await Promise.all(
         habitsQuery.data.map((habit) =>
-          fetchHabitLogs(habit.id, startDate, endDate)
+          fetchHabitLogs(habit.id, startDate, endDate, userId)
         )
       );
       return recentLogs.flat();
@@ -60,23 +61,7 @@ export function useDashboardData(userId: string) {
   // Get today's habits based on frequency
   const getTodayHabits = () => {
     if (!habitsQuery.data) return [];
-
-    const today = new Date().getDay();
-    return habitsQuery.data.filter((habit) => {
-      if (!habit.isActive || habit.isArchived) return false;
-
-      if (habit.frequencyType === FrequencyType.Daily) return true;
-
-      if (habit.frequencyType === FrequencyType.Weekly) {
-        return habit.frequencyValue.days?.includes(today) ?? false;
-      }
-
-      if (habit.frequencyType === FrequencyType.Monthly) {
-        return new Date().getDate() === 1;
-      }
-
-      return false;
-    });
+    return getTodayHabitsUtil(habitsQuery.data);
   };
 
   return {

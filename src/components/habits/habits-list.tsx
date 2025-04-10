@@ -8,8 +8,8 @@ import type { Habit } from "~/types";
 export function HabitsList() {
   const { userId } = useAuth();
   const { data: habits = [] } = useQuery<Habit[]>({
-    queryKey: ["habits", userId],
-    queryFn: () => fetchHabits(userId!),
+    queryKey: ["habits"],
+    queryFn: () => fetchHabits(),
     enabled: !!userId,
   });
 

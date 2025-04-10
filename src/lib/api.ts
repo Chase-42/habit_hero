@@ -9,21 +9,17 @@ const getBaseUrl = () => {
   return "http://localhost:3000";
 };
 
-const getHeaders = async (userId: string) => {
+const getHeaders = async () => {
   const headers: HeadersInit = {
     "Content-Type": "application/json",
   };
 
-  if (userId) {
-    headers.Authorization = `Bearer ${userId}`;
-  }
-
   return headers;
 };
 
-export async function fetchHabits(userId: string): Promise<Habit[]> {
-  const response = await fetch(`${getBaseUrl()}/api/habits?userId=${userId}`, {
-    headers: await getHeaders(userId),
+export async function fetchHabits(): Promise<Habit[]> {
+  const response = await fetch(`${getBaseUrl()}/api/habits`, {
+    headers: await getHeaders(),
     cache: "no-store",
   });
 
@@ -41,7 +37,7 @@ export async function fetchHabits(userId: string): Promise<Habit[]> {
 export async function createHabit(data: Omit<Habit, "id">): Promise<Habit> {
   const response = await fetch(`${getBaseUrl()}/api/habits`, {
     method: "POST",
-    headers: await getHeaders(data.userId),
+    headers: await getHeaders(),
     body: JSON.stringify(data),
   });
 
@@ -64,7 +60,7 @@ export async function completeHabit(
     `${getBaseUrl()}/api/habits/${habitId}/complete`,
     {
       method: "POST",
-      headers: await getHeaders(userId),
+      headers: await getHeaders(),
     }
   );
 
@@ -91,7 +87,7 @@ export async function fetchHabitLogs(
   url.searchParams.append("endDate", endDate.toISOString());
 
   const response = await fetch(url.toString(), {
-    headers: await getHeaders(userId),
+    headers: await getHeaders(),
     cache: "no-store",
   });
 
@@ -108,7 +104,7 @@ export async function fetchHabitLogs(
 
 export async function fetchTodaysLogs(userId: string): Promise<HabitLog[]> {
   const response = await fetch(`${getBaseUrl()}/api/habits/logs/today`, {
-    headers: await getHeaders(userId),
+    headers: await getHeaders(),
     cache: "no-store",
   });
 
@@ -129,7 +125,7 @@ export async function deleteHabitLog(
 ): Promise<void> {
   const response = await fetch(`${getBaseUrl()}/api/habits/logs/${logId}`, {
     method: "DELETE",
-    headers: await getHeaders(userId),
+    headers: await getHeaders(),
   });
 
   if (!response.ok) {
@@ -150,7 +146,7 @@ export async function toggleHabit(
     `${getBaseUrl()}/api/habits/${habit.id}/toggle`,
     {
       method: "PUT",
-      headers: await getHeaders(habit.userId),
+      headers: await getHeaders(),
       body: JSON.stringify({
         completed: !isCompleted,
         userId: habit.userId,

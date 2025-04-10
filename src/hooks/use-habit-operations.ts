@@ -12,10 +12,19 @@ import {
 import { FrequencyType } from "~/types/common/enums";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ApiResponse } from "~/types/api/validation";
+import {
+  getTodayHabits as getTodayHabitsUtil,
+  isHabitCompletedOnDate,
+} from "~/lib/utils/habits";
 
 type NewHabit = Omit<
   Habit,
-  "id" | "createdAt" | "updatedAt" | "streak" | "longestStreak"
+  | "id"
+  | "createdAt"
+  | "updatedAt"
+  | "streak"
+  | "longestStreak"
+  | "lastCompleted"
 >;
 
 interface UseHabitOperationsProps {
@@ -62,7 +71,7 @@ export function useHabitOperations({ userId }: UseHabitOperationsProps) {
 
     try {
       // Load habits first
-      const habits = await fetchHabits(userId);
+      const habits = await fetchHabits();
       setPartialState({ habits });
 
       // Load only today's logs initially for faster first render
@@ -73,7 +82,7 @@ export function useHabitOperations({ userId }: UseHabitOperationsProps) {
 
       const todayLogs = await Promise.all(
         habits.map(async (habit) => {
-          const logs = await fetchHabitLogs(habit.id, today, tomorrow);
+          const logs = await fetchHabitLogs(habit.id, today, tomorrow, userId);
           return logs;
         })
       );
@@ -105,7 +114,8 @@ export function useHabitOperations({ userId }: UseHabitOperationsProps) {
           const logs = await fetchHabitLogs(
             habit.id,
             recentStartDate,
-            recentEndDate
+            recentEndDate,
+            userId
           );
           return logs;
         })
@@ -128,7 +138,14 @@ export function useHabitOperations({ userId }: UseHabitOperationsProps) {
 
   const addHabit = async (newHabit: NewHabit) => {
     try {
-      const habit = await createHabit(newHabit);
+      const habit = await createHabit({
+        ...newHabit,
+        streak: 0,
+        longestStreak: 0,
+        lastCompleted: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
       setPartialState({
         habits: [...state.habits, habit],
       });
@@ -194,7 +211,7 @@ export function useHabitOperations({ userId }: UseHabitOperationsProps) {
     });
 
     try {
-      await toggleHabit(habit);
+      await toggleHabit(habit, !isCompleted);
     } catch (error) {
       // Revert optimistic updates on error
       setPartialState({
@@ -273,23 +290,7 @@ export function useHabitOperations({ userId }: UseHabitOperationsProps) {
   };
 
   const getTodayHabits = () => {
-    const today = new Date().getDay();
-    return state.habits.filter((habit) => {
-      if (!habit.isActive || habit.isArchived) return false;
-
-      if (habit.frequencyType === FrequencyType.Daily) return true;
-
-      if (habit.frequencyType === FrequencyType.Weekly) {
-        return habit.frequencyValue.days?.includes(today) ?? false;
-      }
-
-      // For monthly habits, show them on the 1st of each month
-      if (habit.frequencyType === FrequencyType.Monthly) {
-        return new Date().getDate() === 1;
-      }
-
-      return false;
-    });
+    return getTodayHabitsUtil(state.habits);
   };
 
   return {
