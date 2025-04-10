@@ -267,7 +267,8 @@ export function HabitCard({
     <Card
       className={cn(
         "group relative overflow-visible transition-all duration-300",
-        CATEGORY_STYLES[habit.category as HabitCategory].bg
+        CATEGORY_STYLES[habit.category as HabitCategory]?.bg ??
+          CATEGORY_STYLES.other.bg
       )}
     >
       <CardContent className="p-4">
@@ -285,7 +286,8 @@ export function HabitCard({
               <span
                 className={cn(
                   "text-sm font-medium",
-                  CATEGORY_STYLES[habit.category as HabitCategory].text
+                  CATEGORY_STYLES[habit.category as HabitCategory]?.text ??
+                    CATEGORY_STYLES.other.text
                 )}
               >
                 {habit.category}
