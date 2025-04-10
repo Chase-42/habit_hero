@@ -4,7 +4,7 @@ import { Calendar } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { useMemo, useState, useEffect } from "react";
 import { FrequencyType } from "~/types/common/enums";
-import { toggleHabit } from "~/lib/api-client";
+import { toggleHabit } from "~/lib/api";
 import type { Habit } from "~/types";
 
 import { Card, CardContent, CardHeader } from "~/components/ui/card";
@@ -16,7 +16,7 @@ import { StatsCards } from "~/components/stats-cards";
 import { useAddHabit, useDeleteHabit } from "~/hooks/use-habit-operations";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { Skeleton } from "~/components/ui/skeleton";
-import { fetchHabits, fetchHabitLogs } from "~/lib/api-client";
+import { fetchHabits, fetchHabitLogs } from "~/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { AddHabitModal } from "~/components/add-habit-modal";
@@ -68,72 +68,27 @@ export function DashboardContent() {
   });
 
   const completeHabitMutation = useMutation({
-    mutationFn: async ({ habit }: { habit: Habit }) => {
-      console.log("[TOGGLE] Before toggle:", {
-        habitId: habit.id,
-        name: habit.name,
-        lastCompleted: habit.lastCompleted,
-      });
-      const result = await toggleHabit(habit);
-      console.log("[TOGGLE] After toggle:", {
-        habitId: result.id,
-        name: result.name,
-        lastCompleted: result.lastCompleted,
-      });
+    mutationFn: async (habit: Habit) => {
+      const isCompleted = habitLogs.some(
+        (log) =>
+          log.habitId === habit.id &&
+          new Date(log.completedAt).toISOString().split("T")[0] ===
+            new Date().toISOString().split("T")[0]
+      );
+      const result = await toggleHabit(habit, isCompleted);
       return result;
     },
-    onMutate: async ({ habit }) => {
-      await queryClient.cancelQueries({ queryKey: ["habits"] });
-      const previousHabits = queryClient.getQueryData<Habit[]>(["habits"]);
-
-      queryClient.setQueryData<Habit[]>(["habits"], (old = []) =>
-        old.map((h) => {
-          if (h.id === habit.id) {
-            const updatedHabit = {
-              ...h,
-              lastCompleted: h.lastCompleted ? null : new Date(),
-            };
-            console.log("[OPTIMISTIC] Updating habit:", {
-              id: h.id,
-              name: h.name,
-              oldLastCompleted: h.lastCompleted,
-              newLastCompleted: updatedHabit.lastCompleted,
-            });
-            return updatedHabit;
-          }
-          return h;
-        })
+    onSuccess: (updatedHabit) => {
+      queryClient.setQueryData<Habit[]>(
+        ["habits"],
+        (old) =>
+          old?.map((h) => (h.id === updatedHabit.id ? updatedHabit : h)) ?? []
       );
-
-      setCompletingHabits((prev) => new Set([...prev, habit.id]));
-      return { previousHabits };
-    },
-    onError: (_, { habit }, context) => {
-      if (context?.previousHabits) {
-        queryClient.setQueryData(["habits"], context.previousHabits);
-      }
-      setCompletingHabits((prev) => {
-        const next = new Set(prev);
-        next.delete(habit.id);
-        return next;
-      });
-    },
-    onSettled: async (_, __, { habit }) => {
-      setCompletingHabits((prev) => {
-        const next = new Set(prev);
-        next.delete(habit.id);
-        return next;
-      });
-      // Invalidate both habits and logs queries
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["habits"] }),
-        queryClient.invalidateQueries({ queryKey: ["habitLogs"] }),
-      ]);
     },
   });
 
   const completeHabit = async (habit: Habit) => {
-    await completeHabitMutation.mutateAsync({ habit });
+    await completeHabitMutation.mutateAsync(habit);
   };
 
   const todayHabits = useMemo(() => {
@@ -255,6 +210,8 @@ export function DashboardContent() {
             isArchived: h.isArchived,
             streak: h.streak,
             lastCompleted: h.lastCompleted,
+            frequencyType: h.frequencyType,
+            frequencyValue: h.frequencyValue,
           })),
         },
         null,
@@ -272,18 +229,9 @@ export function DashboardContent() {
     const completedToday = activeHabits.filter((habit) =>
       habitLogs.some((log) => {
         const completedAt = new Date(log.completedAt);
-        const logDate = new Date(
-          completedAt.getFullYear(),
-          completedAt.getMonth(),
-          completedAt.getDate()
-        );
-        const todayDate = new Date(
-          today.getFullYear(),
-          today.getMonth(),
-          today.getDate()
-        );
+        completedAt.setHours(0, 0, 0, 0);
         return (
-          log.habitId === habit.id && logDate.getTime() === todayDate.getTime()
+          log.habitId === habit.id && completedAt.getTime() === today.getTime()
         );
       })
     );
@@ -292,38 +240,54 @@ export function DashboardContent() {
     const weekStart = new Date(today);
     weekStart.setDate(today.getDate() - 6); // Last 7 days including today
 
+    // Calculate total possible completions based on frequency
+    let totalPossibleCompletions = 0;
     const weeklyLogs = habitLogs.filter((log) => {
       const completedAt = new Date(log.completedAt);
-      const logDate = new Date(
-        completedAt.getFullYear(),
-        completedAt.getMonth(),
-        completedAt.getDate()
-      );
-      const weekStartDate = new Date(
-        weekStart.getFullYear(),
-        weekStart.getMonth(),
-        weekStart.getDate()
-      );
-      const todayDate = new Date(
-        today.getFullYear(),
-        today.getMonth(),
-        today.getDate()
-      );
-      return logDate >= weekStartDate && logDate <= todayDate;
+      completedAt.setHours(0, 0, 0, 0);
+      return completedAt >= weekStart && completedAt <= today;
     });
 
-    // Calculate total possible completions for the week
-    const totalPossibleCompletions = activeHabits.length * 7;
+    for (const habit of activeHabits) {
+      if (habit.frequencyType === FrequencyType.Daily) {
+        totalPossibleCompletions += 7; // Daily habits can be completed every day
+      } else if (habit.frequencyType === FrequencyType.Weekly) {
+        // Weekly habits can be completed on specific days
+        const days = habit.frequencyValue.days ?? [];
+        totalPossibleCompletions += days.length;
+      }
+    }
+
     const weeklyProgress =
       totalPossibleCompletions > 0
         ? Math.round((weeklyLogs.length / totalPossibleCompletions) * 100)
         : 0;
 
+    // Calculate current streak
+    let currentStreak = 0;
+    for (const habit of activeHabits) {
+      if (habit.lastCompleted) {
+        const lastCompleted = new Date(habit.lastCompleted);
+        lastCompleted.setHours(0, 0, 0, 0);
+        const daysSinceLastCompletion = Math.floor(
+          (today.getTime() - lastCompleted.getTime()) / (1000 * 60 * 60 * 24)
+        );
+
+        if (daysSinceLastCompletion === 0) {
+          // Habit was completed today
+          currentStreak = Math.max(currentStreak, (habit.streak || 0) + 1);
+        } else if (daysSinceLastCompletion === 1) {
+          // Habit was completed yesterday
+          currentStreak = Math.max(currentStreak, habit.streak || 0);
+        }
+      }
+    }
+
     const result = {
       totalHabits: activeHabits.length,
       completedToday: completedToday.length,
       weeklyProgress,
-      currentStreak: Math.max(...activeHabits.map((h) => h.streak || 0)),
+      currentStreak,
     };
 
     console.log(
@@ -332,7 +296,12 @@ export function DashboardContent() {
         {
           today: today.toISOString(),
           weekStart: weekStart.toISOString(),
-          activeHabits: activeHabits.map((h) => ({ id: h.id, name: h.name })),
+          activeHabits: activeHabits.map((h) => ({
+            id: h.id,
+            name: h.name,
+            frequencyType: h.frequencyType,
+            frequencyValue: h.frequencyValue,
+          })),
           completedToday: completedToday.map((h) => ({
             id: h.id,
             name: h.name,
@@ -341,6 +310,7 @@ export function DashboardContent() {
             habitId: l.habitId,
             completedAt: l.completedAt,
           })),
+          totalPossibleCompletions,
           result,
         },
         null,
@@ -478,8 +448,8 @@ export function DashboardContent() {
   }
 
   return (
-    <main className="flex h-screen flex-col">
-      <header className="border-b bg-background px-4 py-3">
+    <main className="flex h-[calc(100vh-4rem)] flex-col">
+      <header className="flex-none border-b bg-background px-4 py-3">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-lg font-semibold sm:text-2xl">Dashboard</h1>
@@ -510,7 +480,7 @@ export function DashboardContent() {
         </div>
       </header>
 
-      <div className="min-h-0 flex-1">
+      <div className="flex-1 overflow-hidden">
         <Tabs defaultValue="overview" className="flex h-full flex-col">
           <TabsList className="flex-none border-b px-4">
             <TabsTrigger value="overview" className="flex-1">
@@ -524,39 +494,79 @@ export function DashboardContent() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent
-            value="overview"
-            className="flex min-h-0 flex-1 flex-col space-y-4 p-4"
-          >
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <StatsCards habits={habits} habitLogs={fetchedHabitLogs} />
-            </div>
+          <div className="flex-1 overflow-hidden">
+            <TabsContent value="overview" className="h-full p-4">
+              <div className="flex h-full flex-col gap-4">
+                <div className="grid flex-none grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <StatsCards habits={habits} habitLogs={fetchedHabitLogs} />
+                </div>
 
-            <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-2">
-              <Card className="flex flex-col">
+                <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-2">
+                  <Card className="flex flex-col">
+                    <CardHeader className="flex-none">
+                      <h3 className="text-sm font-medium">
+                        Completion History
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        Your habit completion patterns over time
+                      </p>
+                    </CardHeader>
+                    <CardContent className="min-h-0 flex-1 p-0">
+                      <ScrollArea className="h-full">
+                        <div className="p-4">
+                          <StreakHeatmap
+                            habits={habits}
+                            habitLogs={fetchedHabitLogs}
+                          />
+                        </div>
+                      </ScrollArea>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="flex flex-col">
+                    <CardHeader className="flex-none">
+                      <h3 className="text-sm font-medium">
+                        Today&apos;s Habits
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        Habits to complete today
+                      </p>
+                    </CardHeader>
+                    <CardContent className="min-h-0 flex-1 p-0">
+                      <ScrollArea className="h-full">
+                        <div className="p-4">
+                          <HabitList
+                            habits={todayHabits}
+                            habitLogs={fetchedHabitLogs}
+                            onComplete={completeHabit}
+                            onDelete={async (habit) => {
+                              setHabitToDelete(habit);
+                              return Promise.resolve();
+                            }}
+                            userId={user?.id ?? ""}
+                            completingHabits={completingHabits}
+                          />
+                        </div>
+                      </ScrollArea>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="habits" className="h-full p-4">
+              <Card className="flex h-full flex-col">
                 <CardHeader className="flex-none">
-                  <h3 className="text-sm font-medium">Completion History</h3>
+                  <h3 className="text-sm font-medium">All Habits</h3>
                   <p className="text-xs text-muted-foreground">
-                    Your habit completion patterns over time
+                    Manage all your habits
                   </p>
                 </CardHeader>
-                <CardContent className="min-h-0 flex-1">
-                  <StreakHeatmap habits={habits} habitLogs={fetchedHabitLogs} />
-                </CardContent>
-              </Card>
-
-              <Card className="flex flex-col">
-                <CardHeader className="flex-none">
-                  <h3 className="text-sm font-medium">Today&apos;s Habits</h3>
-                  <p className="text-xs text-muted-foreground">
-                    Habits to complete today
-                  </p>
-                </CardHeader>
-                <CardContent className="relative min-h-0 flex-1 p-0">
+                <CardContent className="min-h-0 flex-1 p-0">
                   <ScrollArea className="h-full">
-                    <div className="space-y-3 p-4">
+                    <div className="p-4">
                       <HabitList
-                        habits={todayHabits}
+                        habits={habits}
                         habitLogs={fetchedHabitLogs}
                         onComplete={completeHabit}
                         onDelete={async (habit) => {
@@ -568,55 +578,31 @@ export function DashboardContent() {
                       />
                     </div>
                   </ScrollArea>
-                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-background to-transparent" />
                 </CardContent>
               </Card>
-            </div>
-          </TabsContent>
+            </TabsContent>
 
-          <TabsContent value="habits" className="min-h-0 flex-1 p-4">
-            <Card className="flex h-full flex-col">
-              <CardHeader className="flex-none">
-                <h3 className="text-sm font-medium">All Habits</h3>
-                <p className="text-xs text-muted-foreground">
-                  Manage all your habits
-                </p>
-              </CardHeader>
-              <CardContent className="min-h-0 flex-1">
-                <ScrollArea className="h-full">
-                  <div className="space-y-3">
-                    <HabitList
-                      habits={habits}
-                      habitLogs={fetchedHabitLogs}
-                      onComplete={completeHabit}
-                      onDelete={async (habit) => {
-                        setHabitToDelete(habit);
-                        return Promise.resolve();
-                      }}
-                      userId={user?.id ?? ""}
-                      completingHabits={completingHabits}
-                    />
-                  </div>
-                </ScrollArea>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="calendar" className="min-h-0 flex-1 p-4">
-            <Card className="flex h-full flex-col">
-              <CardHeader className="flex-none">
-                <h3 className="text-sm font-medium">Habit Calendar</h3>
-                <p className="text-xs text-muted-foreground">
-                  View your habit completion history
-                </p>
-              </CardHeader>
-              <CardContent className="min-h-0 flex-1">
-                <ScrollArea className="h-full">
-                  <HabitCalendar habits={habits} habitLogs={fetchedHabitLogs} />
-                </ScrollArea>
-              </CardContent>
-            </Card>
-          </TabsContent>
+            <TabsContent value="calendar" className="h-full p-4">
+              <Card className="flex h-full flex-col">
+                <CardHeader className="flex-none">
+                  <h3 className="text-sm font-medium">Habit Calendar</h3>
+                  <p className="text-xs text-muted-foreground">
+                    View your habit completion history
+                  </p>
+                </CardHeader>
+                <CardContent className="min-h-0 flex-1 p-0">
+                  <ScrollArea className="h-full">
+                    <div className="p-4">
+                      <HabitCalendar
+                        habits={habits}
+                        habitLogs={fetchedHabitLogs}
+                      />
+                    </div>
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </div>
         </Tabs>
       </div>
 
