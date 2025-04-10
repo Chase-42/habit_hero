@@ -1,33 +1,23 @@
 "use client";
 
+import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
 import { Plus } from "lucide-react";
-import {
-  SignedIn,
-  SignedOut,
-  SignInButton,
-  UserButton,
-  useUser,
-} from "@clerk/nextjs";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { Button } from "~/components/ui/button";
 import { ThemeToggle } from "~/components/theme-toggle";
 import { AddHabitModal } from "~/components/add-habit-modal";
 import { useAddHabit } from "~/hooks/use-habit-operations";
-import { toast } from "sonner";
-import type { Habit } from "~/types";
+import { useUser } from "@clerk/nextjs";
+import type { NewHabit } from "~/types";
 
 export function HeaderActions() {
-  const { user } = useUser();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const { user } = useUser();
   const addHabitMutation = useAddHabit();
 
-  const handleAddHabit = async (
-    habit: Omit<
-      Habit,
-      "id" | "createdAt" | "updatedAt" | "streak" | "longestStreak"
-    >
-  ) => {
+  const handleAddHabit = async (habit: NewHabit) => {
     try {
       await addHabitMutation.mutateAsync(habit);
       toast.success("Habit created successfully!");
@@ -39,29 +29,27 @@ export function HeaderActions() {
   };
 
   return (
-    <>
-      <div className="flex items-center gap-1.5">
-        <SignedOut>
-          <SignInButton mode="modal">
-            <Button variant="default" size="sm" className="text-sm">
-              Sign In
-            </Button>
-          </SignInButton>
-        </SignedOut>
-        <SignedIn>
-          <Button
-            onClick={() => setIsAddModalOpen(true)}
-            size="sm"
-            className="h-8 px-2 text-sm"
-          >
-            <Plus className="mr-1 h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Add Habit</span>
-            <span className="sm:hidden">Add</span>
+    <div className="flex items-center gap-1.5">
+      <SignedOut>
+        <SignInButton mode="modal">
+          <Button variant="default" size="sm" className="text-sm">
+            Sign In
           </Button>
-          <ThemeToggle />
-          <UserButton afterSignOutUrl="/" />
-        </SignedIn>
-      </div>
+        </SignInButton>
+      </SignedOut>
+      <SignedIn>
+        <Button
+          onClick={() => setIsAddModalOpen(true)}
+          variant="default"
+          size="sm"
+          className="flex items-center gap-2"
+        >
+          <Plus className="h-4 w-4" />
+          Add Habit
+        </Button>
+        <ThemeToggle />
+        <UserButton afterSignOutUrl="/" />
+      </SignedIn>
 
       <AddHabitModal
         open={isAddModalOpen}
@@ -69,6 +57,6 @@ export function HeaderActions() {
         onAddHabit={handleAddHabit}
         userId={user?.id ?? ""}
       />
-    </>
+    </div>
   );
 }

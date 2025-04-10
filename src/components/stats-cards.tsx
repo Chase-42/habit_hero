@@ -9,8 +9,37 @@ function calculateCurrentStreak(
   habits: Habit[],
   habitLogs: HabitLog[]
 ): number {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
   const activeHabits = habits.filter((h) => h.isActive && !h.isArchived);
-  return Math.max(0, ...activeHabits.map((h) => h.streak || 0));
+  let maxStreak = 0;
+
+  for (const habit of activeHabits) {
+    let currentStreak = 0;
+    const lastCompleted = habit.lastCompleted
+      ? new Date(habit.lastCompleted)
+      : null;
+
+    if (lastCompleted) {
+      lastCompleted.setHours(0, 0, 0, 0);
+      const daysSinceLastCompletion = Math.floor(
+        (today.getTime() - lastCompleted.getTime()) / (1000 * 60 * 60 * 24)
+      );
+
+      if (daysSinceLastCompletion === 0) {
+        // Habit was completed today
+        currentStreak = (habit.streak || 0) + 1;
+      } else if (daysSinceLastCompletion === 1) {
+        // Habit was completed yesterday
+        currentStreak = habit.streak || 0;
+      }
+    }
+
+    maxStreak = Math.max(maxStreak, currentStreak);
+  }
+
+  return maxStreak;
 }
 
 function calculateWeeklyProgress(
@@ -22,31 +51,18 @@ function calculateWeeklyProgress(
   const weekStart = new Date(today);
   weekStart.setDate(today.getDate() - 6); // Last 7 days including today
 
+  const activeHabits = habits.filter((h) => h.isActive && !h.isArchived);
+  const totalPossibleCompletions = activeHabits.length * 7;
+
+  if (totalPossibleCompletions === 0) return 0;
+
   const weeklyLogs = habitLogs.filter((log) => {
-    const completedAt = new Date(log.completedAt);
-    const logDate = new Date(
-      completedAt.getFullYear(),
-      completedAt.getMonth(),
-      completedAt.getDate()
-    );
-    const weekStartDate = new Date(
-      weekStart.getFullYear(),
-      weekStart.getMonth(),
-      weekStart.getDate()
-    );
-    const todayDate = new Date(
-      today.getFullYear(),
-      today.getMonth(),
-      today.getDate()
-    );
-    return logDate >= weekStartDate && logDate <= todayDate;
+    const logDate = new Date(log.completedAt);
+    logDate.setHours(0, 0, 0, 0);
+    return logDate >= weekStart && logDate <= today;
   });
 
-  const activeHabits = habits.filter((h) => !h.isArchived && h.isActive);
-  const totalPossibleCompletions = activeHabits.length * 7;
-  return totalPossibleCompletions > 0
-    ? Math.round((weeklyLogs.length / totalPossibleCompletions) * 100)
-    : 0;
+  return Math.round((weeklyLogs.length / totalPossibleCompletions) * 100);
 }
 
 interface StatsCardsProps {
@@ -113,13 +129,17 @@ export function StatsCards({ habits, habitLogs }: StatsCardsProps) {
   }, [habits, habitLogs]);
 
   const todayHabits = habits.filter((habit) => {
-    // ... existing filtering logic ...
-    return true; // Placeholder
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return habit.isActive && !habit.isArchived;
   });
 
   const completedToday = habitLogs.filter((log) => {
-    // ... existing filtering logic ...
-    return true; // Placeholder
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const logDate = new Date(log.completedAt);
+    logDate.setHours(0, 0, 0, 0);
+    return logDate.getTime() === today.getTime();
   });
 
   const currentStreak = calculateCurrentStreak(habits, habitLogs);

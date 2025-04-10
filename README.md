@@ -1,5 +1,14 @@
 # Habit Hero
 
+A minimalist habit tracking application that helps you build and maintain daily, weekly, and monthly habits.
+
+## Features
+
+- **Simple Habit Tracking**: Create and track habits with customizable frequencies
+- **Dashboard Overview**: View your habits, completion status, and basic statistics
+- **Calendar View**: Visualize your habit completion patterns over time
+- **Streak Tracking**: Monitor your consistency with habit streaks
+
 ## Project Structure
 
 This project follows Clean Architecture principles with the following structure:
@@ -105,12 +114,3 @@ The following rules enforce Clean Architecture principles:
 └── 📁 stats
 └── route.ts # Get user stats
 └── GET ?userId={userId} # Get user stats
-
-## TODO
-
-- [ ] Set up database and model
-- [ ] Add auth
-- [ ] Adding habit
-- [ ] Deleting habit
-- [ ] Editing habit
-- [ ] Charts & graphs

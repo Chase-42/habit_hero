@@ -26,6 +26,17 @@ export interface Habit {
   reminderEnabled: boolean;
 }
 
+export interface HabitLog {
+  id: string;
+  habitId: string;
+  userId: string;
+  completedAt: Date;
+  value: number | null;
+  notes: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface HabitFilters {
   userId: string;
   isActive?: boolean;

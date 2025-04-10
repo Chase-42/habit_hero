@@ -5,9 +5,11 @@ import { and, between, eq } from "drizzle-orm";
 import { toggleHabitSchema } from "~/schemas";
 import type { RouteContext, RouteParams } from "~/types/route";
 import type { ApiResponse } from "~/types/api/validation";
-import type { Habit } from "~/types";
+import type { Habit, HabitLog } from "~/types";
 
-type ToggleResponse = NextResponse<ApiResponse<Habit> | ApiResponse<null>>;
+type ToggleResponse = NextResponse<
+  ApiResponse<{ habit: Habit; logs: HabitLog[] }> | ApiResponse<null>
+>;
 
 export async function PUT(
   request: Request,
@@ -166,8 +168,33 @@ export async function PUT(
       );
     }
 
-    return NextResponse.json<ApiResponse<Habit>>({
-      data: updatedHabit,
+    // Get the logs for the current month
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(
+      now.getFullYear(),
+      now.getMonth() + 1,
+      0,
+      23,
+      59,
+      59,
+      999
+    );
+
+    const logs = await db
+      .select()
+      .from(habitLogs)
+      .where(
+        and(
+          eq(habitLogs.habitId, id),
+          between(habitLogs.completedAt, startOfMonth, endOfMonth)
+        )
+      );
+
+    return NextResponse.json<ApiResponse<{ habit: Habit; logs: HabitLog[] }>>({
+      data: {
+        habit: updatedHabit,
+        logs,
+      },
     });
   } catch (error) {
     console.error("Error toggling habit:", error);

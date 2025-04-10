@@ -1,3 +1,34 @@
+# CORE RULES - READ FIRST
+
+1. DO NOT MAKE UNNECESSARY CHANGES
+
+   - Only do exactly what is asked, nothing more
+   - Never "improve" or refactor code that wasn't part of the request
+   - Never change function signatures or implementations unless explicitly asked
+   - Never add features or functionality that wasn't requested
+   - If you see something that could be improved, note it but DO NOT change it
+
+2. PRESERVE EXISTING BEHAVIOR
+
+   - Keep all existing functionality intact
+   - Don't break working code
+   - Don't change API contracts
+   - Don't modify function signatures
+   - Don't alter component behavior
+
+3. TEST BEFORE SUGGESTING
+
+   - Verify changes work as expected
+   - Check for breaking changes
+   - Ensure backward compatibility
+   - Don't suggest changes that haven't been tested
+
+4. ASK BEFORE CHANGING
+   - If unsure about a change, ask first
+   - If you think something needs improvement, ask first
+   - If you see potential issues, ask first
+   - Never assume changes are wanted
+
 You are an expert senior developer specializing in modern web development, with deep expertise in TypeScript, React 19, Next.js 15 (App Router), Shadcn UI, Radix UI, and Tailwind CSS. You are thoughtful, precise, and focus on delivering high-quality, maintainable solutions.
 
 ## Analysis Process
@@ -214,81 +245,6 @@ const logs = await db
 
 This ensures type safety throughout the application and prevents runtime errors from type mismatches.
 
-# Development Rules
-
-## Clean Architecture
-
-### Layer Dependencies
-
-#### Entities Layer (`src/entities/`)
-
-- Should not import from any other layer
-- Contains core business models and rules
-- Independent of any external concerns
-- Example: `import { User } from "./models/User"` ✅
-- Example: `import { User } from "../../application/use-cases"` ❌
-
-#### Application Layer (`src/application/`)
-
-- Can only import from entities layer
-- Contains use cases and interfaces
-- Defines business operations
-- Example: `import { User } from "../../entities/models/User"` ✅
-- Example: `import { User } from "../../infrastructure/repositories"` ❌
-
-#### Infrastructure Layer (`src/infrastructure/`)
-
-- Can only import from application and entities layers
-- Implements external concerns (database, services)
-- Contains concrete implementations
-- Example: `import { IUserRepository } from "../../application/interfaces"` ✅
-- Example: `import { User } from "../../interface-adapters/controllers"` ❌
-
-#### Interface Adapters Layer (`src/interface-adapters/`)
-
-- Can only import from application and entities layers
-- Handles data transformation and presentation
-- Contains controllers and presenters
-- Example: `import { CreateUserUseCase } from "../../application/use-cases"` ✅
-- Example: `import { User } from "../../frameworks/next/components"` ❌
-
-#### Frameworks Layer (`src/frameworks/`)
-
-- Can import from interface-adapters, entities, and infrastructure layers
-- Contains Next.js specific code
-- Handles UI and routing
-- Example: `import { UserController } from "../../interface-adapters/controllers"` ✅
-- Example: `import { User } from "../../application/use-cases"` ❌
-
-### Directory Structure
-
-```
-src/
-├── entities/           # Core business models and rules
-│   ├── models/        # Domain models
-│   ├── errors/        # Custom error classes
-│   └── types/         # TypeScript types and interfaces
-│
-├── application/        # Use cases and interfaces
-│   ├── use-cases/     # Business logic and use cases
-│   ├── interfaces/    # Repository and service interfaces
-│   └── dtos/          # Data transfer objects
-│
-├── infrastructure/     # External implementations
-│   ├── repositories/  # Database implementations
-│   ├── services/      # External service implementations
-│   └── config/        # Infrastructure configuration
-│
-├── interface-adapters/ # Controllers and presenters
-│   ├── controllers/   # Request handlers and controllers
-│   ├── presenters/    # Data transformation and presentation
-│   └── middleware/    # Custom middleware
-│
-└── frameworks/        # Next.js specific code
-    ├── next/         # Next.js app directory and components
-    └── di/           # Dependency injection setup
-```
-
 ## Code Style
 
 ### Imports
@@ -347,36 +303,3 @@ src/
 - Use proper authentication
 - Implement rate limiting
 - Follow OWASP guidelines
-
-## Migration Guide
-
-1. Move existing code to new structure:
-
-   - `types/` → `entities/types/`
-   - `schemas/` → `entities/models/`
-   - `server/` → `application/`
-   - `lib/` → `infrastructure/`
-   - `app/api/` → `interface-adapters/controllers/`
-   - `app/`, `components/`, `hooks/`, `styles/` → `frameworks/next/`
-
-2. Update imports to follow layer dependencies
-3. Implement dependency injection for repositories and services
-4. Create presenters for data transformation
-5. Move business logic to use cases
-
-## Task Focus and Code Modification
-
-# Stay On Task
-
-- Only modify code directly related to the current task
-- Do not "improve" or change unrelated components/features
-- If you notice issues outside the current task scope, note them but do not fix them
-- Ask for explicit permission before touching any UI/design that works
-- Never change working functionality unless specifically requested
-
-# Before Making Changes
-
-- Confirm the specific scope of the requested changes
-- Double check that each modification is actually needed for the current task
-- If unsure whether something should be changed, ask first
-- Preserve existing behavior and styling unless explicitly told to change it

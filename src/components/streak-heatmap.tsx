@@ -12,6 +12,7 @@ import {
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import type { StreakHeatmapProps } from "~/types/chart";
 import { FrequencyType } from "~/types/common/enums";
+import { logger } from "~/lib/logger";
 import {
   Card,
   CardContent,
@@ -39,23 +40,19 @@ export function StreakHeatmap({ habits, habitLogs }: StreakHeatmapProps) {
 
   // Generate chart data
   const chartData = React.useMemo(() => {
-    console.log(
-      "[STREAK_HEATMAP] Input data:",
-      JSON.stringify(
-        {
-          habitsCount: habits.length,
-          logsCount: habitLogs.length,
-          habits: habits.map((h) => ({
-            id: h.id,
-            name: h.name,
-            isActive: h.isActive,
-            isArchived: h.isArchived,
-          })),
-        },
-        null,
-        2
-      )
-    );
+    logger.debug("[STREAK_HEATMAP] Input data:", {
+      context: "streak_heatmap",
+      data: {
+        habitsCount: habits.length,
+        logsCount: habitLogs.length,
+        habits: habits.map((h) => ({
+          id: h.id,
+          name: h.name,
+          isActive: h.isActive,
+          isArchived: h.isArchived,
+        })),
+      },
+    });
 
     const today = new Date();
     const startDate = subDays(today, DAYS_TO_SHOW - 1);
@@ -104,46 +101,38 @@ export function StreakHeatmap({ habits, habitLogs }: StreakHeatmapProps) {
 
       // Log data for today
       if (format(date, "yyyy-MM-dd") === format(today, "yyyy-MM-dd")) {
-        console.log(
-          "[STREAK_HEATMAP] Today's data:",
-          JSON.stringify(
-            {
-              date: dayData.date,
-              activeHabits: activeHabits.map((h) => ({
-                id: h.id,
-                name: h.name,
-              })),
-              completedHabits: completedHabits.map((h) => ({
-                id: h.id,
-                name: h.name,
-              })),
-              completion: dayData.completion,
-              total: dayData.total,
-              completed: dayData.completed,
-            },
-            null,
-            2
-          )
-        );
+        logger.debug("[STREAK_HEATMAP] Today's data:", {
+          context: "streak_heatmap",
+          data: {
+            date: dayData.date,
+            activeHabits: activeHabits.map((h) => ({
+              id: h.id,
+              name: h.name,
+            })),
+            completedHabits: completedHabits.map((h) => ({
+              id: h.id,
+              name: h.name,
+            })),
+            completion: dayData.completion,
+            total: dayData.total,
+            completed: dayData.completed,
+          },
+        });
       }
 
       return dayData;
     });
 
-    console.log(
-      "[STREAK_HEATMAP] Chart data:",
-      JSON.stringify(
-        {
-          startDate: format(startDate, "yyyy-MM-dd"),
-          endDate: format(today, "yyyy-MM-dd"),
-          daysWithData: dates.filter((d) => d.total > 0).length,
-          totalDays: dates.length,
-          data: dates,
-        },
-        null,
-        2
-      )
-    );
+    logger.debug("[STREAK_HEATMAP] Chart data:", {
+      context: "streak_heatmap",
+      data: {
+        startDate: format(startDate, "yyyy-MM-dd"),
+        endDate: format(today, "yyyy-MM-dd"),
+        daysWithData: dates.filter((d) => d.total > 0).length,
+        totalDays: dates.length,
+        data: dates,
+      },
+    });
 
     return dates;
   }, [habits, habitLogs]);
@@ -167,20 +156,16 @@ export function StreakHeatmap({ habits, habitLogs }: StreakHeatmapProps) {
       ),
     };
 
-    console.log(
-      "[STREAK_HEATMAP] Totals calculation:",
-      JSON.stringify(
-        {
-          daysWithCompletions: daysWithCompletions.length,
-          totalDays: chartData.length,
-          totalCompletion,
-          daysWithCompletionsData: daysWithCompletions,
-          result,
-        },
-        null,
-        2
-      )
-    );
+    logger.debug("[STREAK_HEATMAP] Totals calculation:", {
+      context: "streak_heatmap",
+      data: {
+        daysWithCompletions: daysWithCompletions.length,
+        totalDays: chartData.length,
+        totalCompletion,
+        daysWithCompletionsData: daysWithCompletions,
+        result,
+      },
+    });
 
     return result;
   }, [chartData]);

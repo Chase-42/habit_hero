@@ -1,47 +1,26 @@
-"use client";
-
-import * as React from "react";
+import { Input } from "~/components/ui/input";
 import { cn } from "~/lib/utils";
 
-interface TimePickerInputProps
-  extends Omit<
-    React.InputHTMLAttributes<HTMLInputElement>,
-    "onChange" | "value"
-  > {
-  value: number;
-  onChange: (value: number) => void;
-  max: number;
-  min?: number;
+interface TimePickerInputProps {
+  value: string;
+  onChange: (value: string) => void;
   className?: string;
+  placeholder?: string;
 }
 
 export function TimePickerInput({
-  className,
   value,
   onChange,
-  max,
-  min = 0,
-  ...props
+  className,
+  placeholder = "Select time",
 }: TimePickerInputProps) {
-  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = parseInt(event.target.value, 10);
-    if (!isNaN(newValue) && newValue >= min && newValue <= max) {
-      onChange(newValue);
-    }
-  };
-
   return (
-    <input
-      {...props}
-      type="number"
+    <Input
+      type="time"
       value={value}
-      onChange={handleChange}
-      min={min}
-      max={max}
-      className={cn(
-        "w-16 rounded-md border border-input bg-background px-3 py-1 text-center text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-        className
-      )}
+      onChange={(e) => onChange(e.target.value)}
+      className={cn("w-full", className)}
+      placeholder={placeholder}
     />
   );
 }
