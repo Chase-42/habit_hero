@@ -324,9 +324,42 @@ export function useAddHabit() {
       }
       return result.data;
     },
-    onSuccess: () => {
-      // Invalidate and refetch habits query
-      void queryClient.invalidateQueries({ queryKey: ["habits"] });
+    onMutate: async (newHabit) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["habits"] });
+
+      // Snapshot the previous value
+      const previousHabits = queryClient.getQueryData<Habit[]>(["habits"]);
+
+      // Optimistically update to the new value
+      queryClient.setQueryData<Habit[]>(["habits"], (old) => {
+        if (!old) return [];
+        const optimisticHabit: Habit = {
+          ...newHabit,
+          id: "temp-id",
+          streak: 0,
+          longestStreak: 0,
+          lastCompleted: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        return [...old, optimisticHabit];
+      });
+
+      return { previousHabits };
+    },
+    onError: (err, newHabit, context) => {
+      // Revert to the previous value on error
+      if (context?.previousHabits) {
+        queryClient.setQueryData<Habit[]>(["habits"], context.previousHabits);
+      }
+    },
+    onSuccess: (newHabit) => {
+      // Update the cache with the real data
+      queryClient.setQueryData<Habit[]>(["habits"], (old) => {
+        if (!old) return [newHabit];
+        return old.map((h) => (h.id === "temp-id" ? newHabit : h));
+      });
     },
   });
 }

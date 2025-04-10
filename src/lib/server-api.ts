@@ -4,7 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 
 const getBaseUrl = () => {
   if (process.env.NODE_ENV === "production") {
-    return "https://api.habithero.app";
+    return ""; // Use relative paths in production
   }
   return "http://localhost:3000";
 };

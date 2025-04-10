@@ -3,7 +3,7 @@ import type { ApiResponse } from "~/types/api/validation";
 
 const getBaseUrl = () => {
   if (process.env.NODE_ENV === "production") {
-    return "https://api.habithero.app";
+    return ""; // Use relative paths in production
   }
   return "http://localhost:3000";
 };
@@ -11,6 +11,8 @@ const getBaseUrl = () => {
 const getHeaders = async () => {
   const headers: HeadersInit = {
     "Content-Type": "application/json",
+    "Cache-Control": "no-cache, no-store, must-revalidate",
+    Pragma: "no-cache",
   };
 
   return headers;
@@ -20,6 +22,7 @@ export async function fetchHabits(): Promise<Habit[]> {
   const response = await fetch(`${getBaseUrl()}/api/habits`, {
     headers: await getHeaders(),
     cache: "no-store",
+    next: { revalidate: 0 },
   });
 
   if (!response.ok) {

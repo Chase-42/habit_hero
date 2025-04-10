@@ -20,18 +20,39 @@ export async function GET() {
             message: "Unauthorized access",
           },
         },
-        { status: 401 }
+        {
+          status: 401,
+          headers: {
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            Pragma: "no-cache",
+          },
+        }
       );
     }
+    console.log("[API] GET /api/habits - Fetching habits for user:", userId);
     const habits = await getHabits(userId);
     console.log(
       "[API] GET /api/habits - Success, found",
       habits.length,
       "habits"
     );
-    return NextResponse.json<ApiResponse<typeof habits>>({ data: habits });
+    return NextResponse.json<ApiResponse<typeof habits>>(
+      { data: habits },
+      {
+        headers: {
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          Pragma: "no-cache",
+        },
+      }
+    );
   } catch (error) {
     console.error("[API] GET /api/habits - Error:", error);
+    if (error instanceof Error) {
+      console.error("[API] GET /api/habits - Error details:", {
+        message: error.message,
+        stack: error.stack,
+      });
+    }
     return NextResponse.json<ApiResponse<null>>(
       {
         data: null,
@@ -44,7 +65,13 @@ export async function GET() {
               : undefined,
         },
       },
-      { status: 500 }
+      {
+        status: 500,
+        headers: {
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          Pragma: "no-cache",
+        },
+      }
     );
   }
 }
@@ -64,7 +91,13 @@ export async function POST(request: Request) {
             message: "Unauthorized access",
           },
         },
-        { status: 401 }
+        {
+          status: 401,
+          headers: {
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            Pragma: "no-cache",
+          },
+        }
       );
     }
 
@@ -82,9 +115,15 @@ export async function POST(request: Request) {
       "[API] POST /api/habits - Success, created habit:",
       createdHabit.id
     );
-    return NextResponse.json<ApiResponse<typeof createdHabit>>({
-      data: createdHabit,
-    });
+    return NextResponse.json<ApiResponse<typeof createdHabit>>(
+      { data: createdHabit },
+      {
+        headers: {
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          Pragma: "no-cache",
+        },
+      }
+    );
   } catch (error) {
     console.error("[API] POST /api/habits - Error:", error);
     if (error instanceof z.ZodError) {
@@ -100,7 +139,13 @@ export async function POST(request: Request) {
             })),
           },
         },
-        { status: 400 }
+        {
+          status: 400,
+          headers: {
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            Pragma: "no-cache",
+          },
+        }
       );
     }
     return NextResponse.json<ApiResponse<null>>(
@@ -115,7 +160,13 @@ export async function POST(request: Request) {
               : undefined,
         },
       },
-      { status: 500 }
+      {
+        status: 500,
+        headers: {
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          Pragma: "no-cache",
+        },
+      }
     );
   }
 }
